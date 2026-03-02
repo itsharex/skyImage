@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -32,7 +34,7 @@ func (s *Server) handleSendVerificationCode(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "系统错误"})
 		return
 	}
-	
+
 	if settings["mail.register.verify"] != "true" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "邮件验证未启用"})
 		return
@@ -44,6 +46,16 @@ func (s *Server) handleSendVerificationCode(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的邮箱地址"})
+		return
+	}
+	clientIP := c.ClientIP()
+	emailKey := strings.ToLower(strings.TrimSpace(input.Email))
+	if ok, retry := s.authLimiter.Allow("verify:ip:"+clientIP, 10, time.Minute); !ok {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "请求过于频繁，请稍后再试", "retryAfterSeconds": int(retry.Seconds()) + 1})
+		return
+	}
+	if ok, retry := s.authLimiter.Allow("verify:email:"+emailKey, 3, time.Minute); !ok {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "该邮箱请求过于频繁，请稍后再试", "retryAfterSeconds": int(retry.Seconds()) + 1})
 		return
 	}
 
@@ -83,7 +95,7 @@ func (s *Server) handleSendVerificationCode(c *gin.Context) {
 	// 发送验证码邮件
 	go func() {
 		ctx := context.Background()
-		log.Printf("[邮件] 准备发送验证码到: %s, 验证码: %s", input.Email, code)
+		log.Printf("[邮件] 准备发送验证码到: %s", input.Email)
 		if err := s.mail.SendVerificationCode(ctx, input.Email, code); err != nil {
 			log.Printf("[邮件] 发送验证码失败: %v", err)
 		} else {
@@ -199,6 +211,18 @@ func (s *Server) handleLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	clientIP := c.ClientIP()
+	emailKey := strings.ToLower(strings.TrimSpace(input.Email))
+	if ok, retry := s.authLimiter.Allow("login:ip:"+clientIP, 20, time.Minute); !ok {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "登录请求过于频繁，请稍后再试", "retryAfterSeconds": int(retry.Seconds()) + 1})
+		return
+	}
+	if emailKey != "" {
+		if ok, retry := s.authLimiter.Allow("login:email:"+emailKey, 10, time.Minute); !ok {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "账号尝试次数过多，请稍后再试", "retryAfterSeconds": int(retry.Seconds()) + 1})
+			return
+		}
+	}
 
 	// Verify Turnstile token if enabled
 	enabled, err := s.turnstile.IsEnabled(c.Request.Context())
@@ -227,7 +251,6 @@ func (s *Server) handleLogin(c *gin.Context) {
 	// 发送登录提醒邮件（异步，不阻塞响应）
 	go func() {
 		ctx := context.Background()
-		clientIP := c.ClientIP()
 		log.Printf("[邮件] 准备发送登录提醒邮件到: %s, 用户: %s, IP: %s", result.User.Email, result.User.Name, clientIP)
 		if err := s.mail.SendLoginNotification(ctx, result.User.Email, result.User.Name, clientIP); err != nil {
 			log.Printf("[邮件] 发送登录提醒邮件失败: %v", err)
@@ -262,19 +285,19 @@ func (s *Server) handleRegistrationStatus(c *gin.Context) {
 	settings, err := s.admin.GetSettings(c.Request.Context())
 	allowed := true
 	emailVerifyEnabled := false
-	
+
 	if err == nil {
 		if settings["features.allow_registration"] == "false" {
 			allowed = false
 		}
 		emailVerifyEnabled = settings["mail.register.verify"] == "true"
 	}
-	
+
 	// 兼容环境变量配置
 	if !s.cfg.AllowRegistration {
 		allowed = false
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"allowed":            allowed,
 		"emailVerifyEnabled": emailVerifyEnabled,

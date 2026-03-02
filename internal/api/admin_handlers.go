@@ -53,12 +53,41 @@ func (s *Server) registerAdminRoutes(r *gin.RouterGroup) {
 	adminGroup.POST("/system/test-turnstile", s.handleAdminTestTurnstile)
 }
 
+func requireSuperAdmin(c *gin.Context) bool {
+	user, ok := middleware.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user"})
+		return false
+	}
+	if !user.IsSuperAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "super admin required"})
+		return false
+	}
+	return true
+}
+
+func redactSettings(settings map[string]string) map[string]string {
+	if len(settings) == 0 {
+		return settings
+	}
+	redacted := make(map[string]string, len(settings))
+	for key, value := range settings {
+		redacted[key] = value
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "mail.smtp.password", "turnstile.secret_key", "turnstile.last_verified_signature":
+			redacted[key] = "***"
+		}
+	}
+	return redacted
+}
+
 func (s *Server) handleAdminMetrics(c *gin.Context) {
 	metrics, err := s.admin.Dashboard(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.Settings = redactSettings(metrics.Settings)
 	c.JSON(http.StatusOK, gin.H{"data": metrics})
 }
 
@@ -410,15 +439,21 @@ func (s *Server) handleAdminBatchDeleteImages(c *gin.Context) {
 }
 
 func (s *Server) handleAdminSettings(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	settings, err := s.admin.GetSettings(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": settings})
+	c.JSON(http.StatusOK, gin.H{"data": redactSettings(settings)})
 }
 
 func (s *Server) handleAdminUpdateSettings(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	var payload map[string]string
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -458,6 +493,9 @@ type systemSettingsResponse struct {
 }
 
 func (s *Server) handleAdminSystemSettings(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	settings, err := s.admin.GetSettings(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -478,18 +516,18 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 			SMTPHost:                settings["mail.smtp.host"],
 			SMTPPort:                settings["mail.smtp.port"],
 			SMTPUsername:            settings["mail.smtp.username"],
-			SMTPPassword:            settings["mail.smtp.password"],
+			SMTPPassword:            "",
 			SMTPSecure:              settings["mail.smtp.secure"] == "true",
 			EnableRegisterVerify:    settings["mail.register.verify"] == "true",
 			EnableLoginNotification: settings["mail.login.notification"] == "true",
 			TurnstileSiteKey:        settings["turnstile.site_key"],
-			TurnstileSecretKey:      settings["turnstile.secret_key"],
+			TurnstileSecretKey:      "",
 			EnableTurnstile:         settings["turnstile.enabled"] == "true",
 			AccountDisabledNotice:   disabledNotice,
 		},
 		TurnstileLastVerifiedAt: settings["turnstile.last_verified_at"],
 	}
-	expectedSig := turnstile.GenerateSignature(payload.TurnstileSiteKey, payload.TurnstileSecretKey)
+	expectedSig := turnstile.GenerateSignature(payload.TurnstileSiteKey, settings["turnstile.secret_key"])
 	storedSig := settings["turnstile.last_verified_signature"]
 	if expectedSig != "" && storedSig == expectedSig {
 		payload.TurnstileVerified = true
@@ -498,6 +536,9 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 }
 
 func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	var payload systemSettingsPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -508,9 +549,17 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	newSignature := turnstile.GenerateSignature(payload.TurnstileSiteKey, payload.TurnstileSecretKey)
+	smtpPassword := strings.TrimSpace(payload.SMTPPassword)
+	if smtpPassword == "" {
+		smtpPassword = settings["mail.smtp.password"]
+	}
+	turnstileSecretKey := strings.TrimSpace(payload.TurnstileSecretKey)
+	if turnstileSecretKey == "" {
+		turnstileSecretKey = settings["turnstile.secret_key"]
+	}
+	newSignature := turnstile.GenerateSignature(payload.TurnstileSiteKey, turnstileSecretKey)
 	if payload.EnableTurnstile {
-		if payload.TurnstileSiteKey == "" || payload.TurnstileSecretKey == "" {
+		if payload.TurnstileSiteKey == "" || turnstileSecretKey == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "启用 Turnstile 时必须填写 Site Key 和 Secret Key"})
 			return
 		}
@@ -524,23 +573,23 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		notice = defaultAccountDisabledNotice
 	}
 	values := map[string]string{
-		"site.title":                 payload.SiteTitle,
-		"site.description":           payload.SiteDescription,
-		"site.about":                 payload.About,
-		"features.gallery":           strconv.FormatBool(payload.EnableGallery),
-		"features.api":               strconv.FormatBool(payload.EnableApi),
+		"site.title":                  payload.SiteTitle,
+		"site.description":            payload.SiteDescription,
+		"site.about":                  payload.About,
+		"features.gallery":            strconv.FormatBool(payload.EnableGallery),
+		"features.api":                strconv.FormatBool(payload.EnableApi),
 		"features.allow_registration": strconv.FormatBool(payload.AllowRegistration),
-		"mail.smtp.host":             payload.SMTPHost,
-		"mail.smtp.port":             payload.SMTPPort,
-		"mail.smtp.username":         payload.SMTPUsername,
-		"mail.smtp.password":         payload.SMTPPassword,
-		"mail.smtp.secure":           strconv.FormatBool(payload.SMTPSecure),
-		"mail.register.verify":       strconv.FormatBool(payload.EnableRegisterVerify),
-		"mail.login.notification":    strconv.FormatBool(payload.EnableLoginNotification),
-		"turnstile.site_key":         payload.TurnstileSiteKey,
-		"turnstile.secret_key":       payload.TurnstileSecretKey,
-		"turnstile.enabled":          strconv.FormatBool(payload.EnableTurnstile),
-		"account.disabled_notice":    notice,
+		"mail.smtp.host":              payload.SMTPHost,
+		"mail.smtp.port":              payload.SMTPPort,
+		"mail.smtp.username":          payload.SMTPUsername,
+		"mail.smtp.password":          smtpPassword,
+		"mail.smtp.secure":            strconv.FormatBool(payload.SMTPSecure),
+		"mail.register.verify":        strconv.FormatBool(payload.EnableRegisterVerify),
+		"mail.login.notification":     strconv.FormatBool(payload.EnableLoginNotification),
+		"turnstile.site_key":          payload.TurnstileSiteKey,
+		"turnstile.secret_key":        turnstileSecretKey,
+		"turnstile.enabled":           strconv.FormatBool(payload.EnableTurnstile),
+		"account.disabled_notice":     notice,
 	}
 	if settings["turnstile.last_verified_signature"] != newSignature {
 		values["turnstile.last_verified_signature"] = ""
@@ -560,6 +609,9 @@ type testTurnstilePayload struct {
 }
 
 func (s *Server) handleAdminTestTurnstile(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	var payload testTurnstilePayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请先填写完整的 Turnstile 配置信息并通过验证"})
@@ -602,6 +654,9 @@ type testSMTPPayload struct {
 }
 
 func (s *Server) handleAdminTestSMTP(c *gin.Context) {
+	if !requireSuperAdmin(c) {
+		return
+	}
 	var payload testSMTPPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请填写完整的邮件配置信息"})

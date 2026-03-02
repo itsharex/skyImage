@@ -38,16 +38,28 @@ type Server struct {
 	mail         *mail.Service
 	turnstile    *turnstile.Service
 	verification *verification.Service
+	authLimiter  *requestLimiter
+	publicPaths  map[string]struct{}
 }
 
 func NewServer(cfg config.Config, db *gorm.DB) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
-	engine.Use(gin.Logger(), gin.Recovery(), middleware.CORS())
+	engine.Use(
+		gin.Logger(),
+		gin.Recovery(),
+		middleware.CORS(
+			cfg.PublicBaseURL,
+			"http://localhost:5173",
+			"http://127.0.0.1:5173",
+		),
+	)
 	engine.RedirectTrailingSlash = false
 
 	s := &Server{
-		engine: engine,
+		engine:      engine,
+		authLimiter: newRequestLimiter(),
+		publicPaths: make(map[string]struct{}),
 	}
 	s.applyRuntimeConfig(cfg, db)
 	s.installer = installer.New(db, cfg, s.applyRuntimeConfig)
@@ -154,26 +166,33 @@ func (s *Server) registerFrontend() {
 
 func (s *Server) registerStaticAssets() {
 	mounted := make(map[string]struct{})
-	mountPath := func(prefix string, root string) {
+	registerPath := func(prefix string) {
 		prefix = strings.Trim(prefix, "/")
-		root = strings.TrimSpace(root)
-		if prefix == "" || root == "" {
+		if prefix == "" || prefix == "api" || prefix == "assets" {
 			return
 		}
 		path := "/" + prefix
 		if _, exists := mounted[path]; exists {
 			return
 		}
-		cleanRoot := filepath.Clean(root)
-		s.engine.StaticFS(path, gin.Dir(cleanRoot, false))
+		s.publicPaths[prefix] = struct{}{}
+		handler := func(c *gin.Context) {
+			rel := strings.TrimPrefix(c.Param("filepath"), "/")
+			if rel == "" || !s.serveLocalFileByRelative(c, rel) {
+				c.Status(http.StatusNotFound)
+				return
+			}
+		}
+		s.engine.GET(path+"/*filepath", handler)
+		s.engine.HEAD(path+"/*filepath", handler)
 		mounted[path] = struct{}{}
 	}
 
-	mountPath(s.defaultLocalPublicSegment(), s.cfg.StoragePath)
+	registerPath(s.defaultLocalPublicSegment())
 
 	strategies, err := s.admin.ListStrategies(context.Background())
 	if err != nil {
-		log.Printf("load strategies for static mounts: %v", err)
+		log.Printf("load strategies for public paths: %v", err)
 		return
 	}
 	for _, strategy := range strategies {
@@ -192,10 +211,6 @@ func (s *Server) registerStaticAssets() {
 		if driver != "local" {
 			continue
 		}
-		root := stringValue(cfg, "root")
-		if root == "" {
-			root = s.cfg.StoragePath
-		}
 		baseURL := pathPrefix(stringValue(cfg, "url"))
 		if baseURL == "" {
 			baseURL = pathPrefix(stringValue(cfg, "base_url"))
@@ -206,7 +221,7 @@ func (s *Server) registerStaticAssets() {
 		if baseURL == "" {
 			baseURL = s.defaultLocalPublicSegment()
 		}
-		mountPath(baseURL, root)
+		registerPath(baseURL)
 	}
 }
 
@@ -267,11 +282,27 @@ func (s *Server) tryServeLocalFile(c *gin.Context) bool {
 	if rel == "" {
 		return false
 	}
+
+	candidates := []string{rel}
+	segment, rest := splitFirstSegment(rel)
+	if _, ok := s.publicPaths[segment]; ok && rest != "" {
+		candidates = append(candidates, rest)
+	}
+
+	for _, candidate := range candidates {
+		if s.serveLocalFileByRelative(c, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) serveLocalFileByRelative(c *gin.Context, rel string) bool {
 	file, err := s.files.FindByRelativePath(c.Request.Context(), rel)
 	if err != nil {
 		return false
 	}
-	if strings.TrimSpace(file.Path) == "" {
+	if file.Visibility != "public" || strings.TrimSpace(file.Path) == "" {
 		return false
 	}
 	info, err := os.Stat(file.Path)
@@ -280,6 +311,18 @@ func (s *Server) tryServeLocalFile(c *gin.Context) bool {
 	}
 	c.File(file.Path)
 	return true
+}
+
+func splitFirstSegment(path string) (string, string) {
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return "", ""
+	}
+	idx := strings.Index(path, "/")
+	if idx < 0 {
+		return path, ""
+	}
+	return path[:idx], path[idx+1:]
 }
 
 func (s *Server) authMiddleware() gin.HandlerFunc {
