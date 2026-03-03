@@ -18,23 +18,20 @@ export function HomePage({ siteConfig }: { siteConfig?: SiteConfig }) {
     staleTime: 2 * 60 * 1000
   });
 
-  const title = siteConfig?.title || "skyImage";
-  const description = siteConfig?.description || "云端图床";
-  const slogan = siteConfig?.slogan?.trim() || "简单、稳定、可扩展的图像托管平台";
-  const badgeText = siteConfig?.homeBadgeText?.trim() || "新首页";
-  const introText =
-    siteConfig?.homeIntroText?.trim() ||
-    "面向团队和个人的现代化图像托管面板，支持多策略存储、权限控制和 API 接入。";
-  const primaryCtaText = siteConfig?.homePrimaryCtaText?.trim() || "登录系统";
-  const dashboardCtaText = siteConfig?.homeDashboardCtaText?.trim() || "进入控制台";
-  const secondaryCtaText = siteConfig?.homeSecondaryCtaText?.trim() || "注册账号";
-  const feature1Title = siteConfig?.homeFeature1Title?.trim() || "图像管理";
-  const feature1Desc = siteConfig?.homeFeature1Desc?.trim() || "上传、检索、批量操作和链接复制一体化。";
-  const feature2Title = siteConfig?.homeFeature2Title?.trim() || "权限与安全";
-  const feature2Desc = siteConfig?.homeFeature2Desc?.trim() || "支持角色组、注册策略和登录验证配置。";
-  const feature3Title = siteConfig?.homeFeature3Title?.trim() || "可配置品牌信息";
-  const feature3Desc =
-    siteConfig?.homeFeature3Desc?.trim() || "站点标题、描述和首页标语均可在系统设置中管理。";
+  const title = siteConfig?.title ?? "";
+  const description = siteConfig?.description ?? "";
+  const slogan = siteConfig?.slogan?.trim() ?? "";
+  const badgeText = siteConfig?.homeBadgeText?.trim() ?? "";
+  const introText = siteConfig?.homeIntroText?.trim() ?? "";
+  const primaryCtaText = siteConfig?.homePrimaryCtaText?.trim() ?? "";
+  const dashboardCtaText = siteConfig?.homeDashboardCtaText?.trim() ?? "";
+  const secondaryCtaText = siteConfig?.homeSecondaryCtaText?.trim() ?? "";
+  const feature1Title = siteConfig?.homeFeature1Title?.trim() ?? "";
+  const feature1Desc = siteConfig?.homeFeature1Desc?.trim() ?? "";
+  const feature2Title = siteConfig?.homeFeature2Title?.trim() ?? "";
+  const feature2Desc = siteConfig?.homeFeature2Desc?.trim() ?? "";
+  const feature3Title = siteConfig?.homeFeature3Title?.trim() ?? "";
+  const feature3Desc = siteConfig?.homeFeature3Desc?.trim() ?? "";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">

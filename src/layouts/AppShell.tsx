@@ -273,10 +273,8 @@ export function AppShell() {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <p className="text-lg font-semibold">{siteConfig?.title || "skyImage"}</p>
-          <p className="text-sm text-muted-foreground">
-            {siteConfig?.description || "轻量 云端图床"}
-          </p>
+          <p className="min-h-7 text-lg font-semibold">{siteConfig?.title ?? ""}</p>
+          <p className="min-h-5 text-sm text-muted-foreground">{siteConfig?.description ?? ""}</p>
         </SidebarHeader>
         <SidebarContent>
           <SidebarNavSections sections={sections} />
