@@ -24,7 +24,6 @@ type AuthState = {
   hydrate: () => void;
   setUser: (user: User) => void;
   refreshUser: () => Promise<void>;
-  markDisabled: () => void;
 };
 
 const storageKey = "skyimage-auth";
@@ -181,21 +180,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       );
     }
   },
-  markDisabled: () => {
-    const currentUser = get().user;
-    if (!currentUser || currentUser.status === 0) {
-      return;
-    }
-    const disabledUser = { ...currentUser, status: 0 };
-    set({ user: disabledUser });
-    if (typeof window !== "undefined") {
-      const token = get().token;
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({ token, user: disabledUser })
-      );
-    }
-  },
   refreshUser: async () => {
     const token = get().token;
     if (!token) {
@@ -230,13 +214,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         get().clear();
         return;
       }
-      const disabled =
-        status === 403 && message?.includes("account disabled");
-      if (disabled) {
-        console.warn('[Auth] Refresh detected disabled account');
-        get().markDisabled();
-        return;
-      }
+      const disabled = status === 403 && message?.includes("account disabled");
+      if (disabled) return;
     }
   }
 }));

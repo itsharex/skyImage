@@ -2,6 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "@/state/auth";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+const disabledNoticeKey = "skyimage-disabled-notice";
 
 export const apiClient = axios.create({
   baseURL: apiBase,
@@ -20,7 +21,13 @@ apiClient.interceptors.response.use(
       status === 403 && normalized.includes("account disabled");
 
     if (shouldFlagDisabled) {
-      useAuthStore.getState().markDisabled();
+      useAuthStore.getState().clear();
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(disabledNoticeKey, "1");
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }
     }
 
     const wrappedError: Error & { status?: number } = new Error(message);

@@ -41,7 +41,6 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const clear = useAuthStore((state) => state.clear);
   const isAdmin = user?.isAdmin;
-  const isDisabled = user?.status === 0;
   const roleLabel = user?.isSuperAdmin
     ? "超级管理员"
     : isAdmin
@@ -51,10 +50,6 @@ export function AppShell() {
     queryKey: ["site-config"],
     queryFn: fetchSiteConfig
   });
-  const disabledNotice =
-    siteConfig?.accountDisabledNotice?.trim() ||
-    "账户已被封禁，请联系管理员恢复访问。";
-
   const sections = useMemo<NavSection[]>(() => {
     const enableGallery = siteConfig?.enableGallery ?? true;
     const enableApi = siteConfig?.enableApi ?? true;
@@ -156,11 +151,6 @@ export function AppShell() {
       </Sheet>
 
       <div className="flex w-full flex-1 flex-col lg:w-auto">
-        {isDisabled && (
-          <div className="border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:px-4">
-            {disabledNotice}
-          </div>
-        )}
         <header className="flex items-center justify-between gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 py-3">
           {/* 移动端菜单按钮 */}
           <Button

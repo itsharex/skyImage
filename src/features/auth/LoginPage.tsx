@@ -22,6 +22,15 @@ export function LoginPage() {
   const [turnstileReady, setTurnstileReady] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = "skyimage-disabled-notice";
+    if (window.sessionStorage.getItem(key) === "1") {
+      window.sessionStorage.removeItem(key);
+      toast.error("账户已被封禁");
+    }
+  }, []);
+
   const {
     data: hasUsers,
     isLoading: checkingUsers,
