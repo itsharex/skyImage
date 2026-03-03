@@ -8,20 +8,33 @@ import {
   Layers3,
   LinkIcon,
   LogOut,
-  Menu,
+  MoreHorizontal,
   ServerCog,
   Settings2,
   Users,
   Users2
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CapacityMeter } from "@/components/CapacityMeter";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar
+} from "@/components/ui/sidebar";
 import { useAuthStore } from "@/state/auth";
 import { fetchSiteConfig, logout } from "@/lib/api";
 
@@ -36,20 +49,84 @@ type NavSection = {
   items: NavItem[];
 };
 
+function SidebarNavSections({ sections }: { sections: NavSection[] }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  return (
+    <>
+      {sections.map((section, idx) => (
+        <SidebarGroup key={section.title ?? idx}>
+          {section.title ? <SidebarGroupLabel>{section.title}</SidebarGroupLabel> : null}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {section.items.map((item, index) => (
+                <SidebarMenuItem key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    end={section.title === undefined && index === 0}
+                    onClick={() => {
+                      if (isMobile) {
+                        setOpenMobile(false);
+                      }
+                    }}
+                    className={({ isActive }) =>
+                      [
+                        "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                      ].join(" ")
+                    }
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
+  );
+}
+
 export function AppShell() {
-  const [open, setOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const clear = useAuthStore((state) => state.clear);
   const isAdmin = user?.isAdmin;
-  const roleLabel = user?.isSuperAdmin
-    ? "超级管理员"
-    : isAdmin
-    ? "管理员"
-    : "普通用户";
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { data: siteConfig } = useQuery({
     queryKey: ["site-config"],
     queryFn: fetchSiteConfig
   });
+
+  useEffect(() => {
+    if (!accountMenuOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [accountMenuOpen]);
+
   const sections = useMemo<NavSection[]>(() => {
     const enableGallery = siteConfig?.enableGallery ?? true;
     const enableApi = siteConfig?.enableApi ?? true;
@@ -92,104 +169,70 @@ export function AppShell() {
     return base;
   }, [isAdmin, siteConfig]);
 
-  const SidebarContent = () => (
-    <>
-      <div>
-        <p className="text-lg font-semibold">
-          {siteConfig?.title || "skyImage"}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {siteConfig?.description || "轻量 云端图床"}
-        </p>
-      </div>
-      <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
-        {sections.map((section, idx) => (
-          <div key={section.title ?? idx} className="space-y-2">
-            {section.title && (
-              <p className="px-3 text-xs font-semibold uppercase text-muted-foreground">
-                {section.title}
-              </p>
-            )}
-            {section.items.map((item, index) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={section.title === undefined && index === 0}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  [
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "bg-primary/10 font-medium text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  ].join(" ")
-                }
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
-      <CapacityMeter />
-    </>
-  );
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // Ignore logout request failure and clear local state anyway.
+    }
+    clear();
+    window.location.href = "/login";
+  };
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
-      {/* 桌面端侧边栏 */}
-      <aside className="hidden w-72 border-r bg-background p-4 lg:flex lg:flex-col lg:gap-6">
-        <SidebarContent />
-      </aside>
-
-      {/* 移动端侧边栏 */}
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-[280px] sm:w-[320px] p-4 flex flex-col gap-6">
-          <SidebarContent />
-        </SheetContent>
-      </Sheet>
-
-      <div className="flex w-full flex-1 flex-col lg:w-auto">
-        <header className="flex items-center justify-between gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 py-3">
-          {/* 移动端菜单按钮 */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden -ml-2"
-            onClick={() => setOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">打开菜单</span>
-          </Button>
-
-          <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-            <ThemeToggle />
-            <div className="hidden text-sm text-muted-foreground md:block">
-              {user?.name} · {user?.email} · {roleLabel}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await logout();
-                } catch {
-                  // Ignore logout request failure and clear local state anyway.
-                }
-                clear();
-                window.location.href = "/login";
-              }}
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <p className="text-lg font-semibold">{siteConfig?.title || "skyImage"}</p>
+          <p className="text-sm text-muted-foreground">
+            {siteConfig?.description || "轻量 云端图床"}
+          </p>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarNavSections sections={sections} />
+        </SidebarContent>
+        <SidebarFooter className="space-y-3">
+          <CapacityMeter />
+          <div className="relative" ref={accountMenuRef}>
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between rounded-md border border-border bg-accent/40 px-4 py-3 text-left text-base hover:bg-accent"
             >
-              <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">退出</span>
-            </Button>
+              <span className="truncate font-medium">{user?.name || "未登录用户"}</span>
+              <MoreHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            {accountMenuOpen ? (
+              <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-50 w-full min-w-[240px] rounded-md border border-border bg-popover p-1 shadow-md">
+                <div className="px-3 py-2">
+                  <p className="text-base font-semibold">{user?.name || "未知用户"}</p>
+                  <p className="truncate pt-1 text-sm text-muted-foreground">{user?.email || "暂无邮箱"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2.5 text-base text-destructive hover:bg-accent"
+                >
+                  <LogOut className="h-4 w-4" />
+                  退出登录
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-14 items-center justify-between border-b bg-background px-3 sm:px-4">
+          <SidebarTrigger className="lg:hidden" />
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 p-3 sm:p-4 lg:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8">
           <Outlet />
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
