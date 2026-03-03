@@ -1,12 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 
 import { InstallerPage } from "@/features/installer/InstallerPage";
 import { UploadPage } from "@/features/files/UploadPage";
 import { UserManagementPage } from "@/features/users/UserManagementPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RegisterPage } from "@/features/auth/RegisterPage";
-import { fetchInstallerStatus } from "@/lib/api";
+import { fetchInstallerStatus, fetchSiteConfig } from "@/lib/api";
 import { SplashScreen } from "@/components/SplashScreen";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/layouts/AppShell";
@@ -31,6 +32,40 @@ import { SiteMetaWatcher } from "@/components/SiteMetaWatcher";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { HomePage } from "@/features/home/HomePage";
+
+function HomeEntry() {
+  const { data: siteConfig } = useQuery({
+    queryKey: ["site-config"],
+    queryFn: fetchSiteConfig,
+    staleTime: 0,
+    refetchOnMount: true
+  });
+
+  const cachedEnableHome = useMemo(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+    const raw = window.localStorage.getItem("site-config:enable-home");
+    if (raw === "false") return false;
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || siteConfig?.enableHome === undefined) {
+      return;
+    }
+    window.localStorage.setItem("site-config:enable-home", String(siteConfig.enableHome));
+  }, [siteConfig?.enableHome]);
+
+  if (siteConfig && siteConfig.enableHome === false) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!siteConfig && cachedEnableHome === false) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <HomePage />;
+}
 
 export default function App() {
   const {
@@ -68,7 +103,7 @@ export default function App() {
         {!installed && <Route path="/installer" element={<InstallerPage />} />}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        {installed && <Route path="/" element={<HomePage />} />}
+        {installed && <Route path="/" element={<HomeEntry />} />}
         {installed && (
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard/*" element={<AppShell />}>

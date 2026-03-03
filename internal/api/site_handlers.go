@@ -28,6 +28,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 		return
 	}
 	enableGallery := settings["features.gallery"] != "false"
+	enableHome := settings["features.home"] != "false"
 	enableAPI := settings["features.api"] != "false"
 	disabledNotice := settings["account.disabled_notice"]
 	if strings.TrimSpace(disabledNotice) == "" {
@@ -51,6 +52,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 		"homeFeature3Desc":      settings["home.feature3_desc"],
 		"about":                 status.About,
 		"enableGallery":         enableGallery,
+		"enableHome":            enableHome,
 		"enableApi":             enableAPI,
 		"version":               status.Version,
 		"accountDisabledNotice": disabledNotice,

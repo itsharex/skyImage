@@ -10,6 +10,7 @@ import (
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"skyimage/internal/data"
 )
@@ -72,7 +73,17 @@ func (s *Service) GetSettings(ctx context.Context) (map[string]string, error) {
 func (s *Service) UpdateSettings(ctx context.Context, kv map[string]string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for key, value := range kv {
-			if err := tx.Save(&data.ConfigEntry{Key: key, Value: value}).Error; err != nil {
+			entry := data.ConfigEntry{
+				Key:   key,
+				Value: value,
+			}
+			if err := tx.Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "key"}},
+				DoUpdates: clause.Assignments(map[string]interface{}{
+					"value":      value,
+					"updated_at": gorm.Expr("CURRENT_TIMESTAMP"),
+				}),
+			}).Create(&entry).Error; err != nil {
 				return fmt.Errorf("save config %s: %w", key, err)
 			}
 		}
@@ -98,7 +109,7 @@ func (s *Service) CreateGroup(ctx context.Context, payload GroupPayload) (data.G
 	if err := validateGroupConfigs(payload.Configs); err != nil {
 		return data.Group{}, err
 	}
-	
+
 	cfgBytes, _ := json.Marshal(payload.Configs)
 	group := data.Group{
 		Name:      payload.Name,
@@ -123,7 +134,7 @@ func (s *Service) UpdateGroup(ctx context.Context, id uint, payload GroupPayload
 	if err := validateGroupConfigs(payload.Configs); err != nil {
 		return data.Group{}, err
 	}
-	
+
 	group := data.Group{}
 	if err := s.db.WithContext(ctx).First(&group, id).Error; err != nil {
 		return group, err
@@ -285,7 +296,7 @@ func validateGroupConfigs(configs map[string]interface{}) error {
 	if configs == nil {
 		return nil
 	}
-	
+
 	// Validate max_file_size
 	if maxFileSize, ok := configs["max_file_size"]; ok {
 		var size float64
@@ -303,7 +314,7 @@ func validateGroupConfigs(configs map[string]interface{}) error {
 			return fmt.Errorf("最大单文件大小必须大于等于 0")
 		}
 	}
-	
+
 	// Validate max_capacity
 	if maxCapacity, ok := configs["max_capacity"]; ok {
 		var capacity float64
@@ -343,7 +354,7 @@ func validateGroupConfigs(configs map[string]interface{}) error {
 			return fmt.Errorf("upload_rate_hour 必须大于等于 0")
 		}
 	}
-	
+
 	return nil
 }
 

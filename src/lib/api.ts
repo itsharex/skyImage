@@ -144,6 +144,7 @@ export type SiteConfig = {
   homeFeature3Desc?: string;
   about: string;
   enableGallery: boolean;
+  enableHome?: boolean;
   enableApi: boolean;
   version?: string;
   accountDisabledNotice?: string;
@@ -446,6 +447,7 @@ export type SystemSettingsInput = {
   homeFeature3Desc: string;
   about: string;
   enableGallery: boolean;
+  enableHome: boolean;
   enableApi: boolean;
   allowRegistration: boolean;
   smtpHost: string;

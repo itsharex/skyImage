@@ -33,6 +33,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   homeFeature3Desc: "",
   about: "",
   enableGallery: true,
+  enableHome: true,
   enableApi: true,
   allowRegistration: true,
   smtpHost: "",
@@ -65,6 +66,7 @@ const siteFields: (keyof SystemSettingsInput)[] = [
   "homeFeature3Desc",
   "about",
   "enableGallery",
+  "enableHome",
   "enableApi",
   "allowRegistration",
   "accountDisabledNotice"
@@ -270,6 +272,14 @@ export function AdminSiteSettingsPage() {
                 onCheckedChange={(checked) => handleChange("enableGallery", checked)}
               />
               <Label htmlFor="enableGallery">开启画廊</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="enableHome"
+                checked={form.enableHome}
+                onCheckedChange={(checked) => handleChange("enableHome", checked)}
+              />
+              <Label htmlFor="enableHome">开启首页</Label>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox

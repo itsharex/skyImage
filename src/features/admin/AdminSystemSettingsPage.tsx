@@ -37,6 +37,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   homeFeature3Desc: "",
   about: "",
   enableGallery: true,
+  enableHome: true,
   enableApi: true,
   allowRegistration: true,
   smtpHost: "",

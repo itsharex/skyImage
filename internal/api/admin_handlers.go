@@ -483,6 +483,7 @@ type systemSettingsPayload struct {
 	HomeFeature3Desc        string `json:"homeFeature3Desc"`
 	About                   string `json:"about"`
 	EnableGallery           bool   `json:"enableGallery"`
+	EnableHome              bool   `json:"enableHome"`
 	EnableApi               bool   `json:"enableApi"`
 	AllowRegistration       bool   `json:"allowRegistration"`
 	SMTPHost                string `json:"smtpHost"`
@@ -535,6 +536,7 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 			HomeFeature3Desc:        settings["home.feature3_desc"],
 			About:                   settings["site.about"],
 			EnableGallery:           settings["features.gallery"] != "false",
+			EnableHome:              settings["features.home"] != "false",
 			EnableApi:               settings["features.api"] != "false",
 			AllowRegistration:       settings["features.allow_registration"] != "false",
 			SMTPHost:                settings["mail.smtp.host"],
@@ -613,6 +615,7 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		"home.feature3_desc":          payload.HomeFeature3Desc,
 		"site.about":                  payload.About,
 		"features.gallery":            strconv.FormatBool(payload.EnableGallery),
+		"features.home":               strconv.FormatBool(payload.EnableHome),
 		"features.api":                strconv.FormatBool(payload.EnableApi),
 		"features.allow_registration": strconv.FormatBool(payload.AllowRegistration),
 		"mail.smtp.host":              payload.SMTPHost,

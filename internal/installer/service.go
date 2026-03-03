@@ -171,6 +171,7 @@ func (s *Service) Run(ctx context.Context, in RunInput) (Status, error) {
 			"home.feature3_desc":      "站点标题、描述和首页标语均可在系统设置中管理。",
 			"storage.root":            s.cfg.StoragePath,
 			"features.gallery":        "true",
+			"features.home":           "true",
 			"features.api":            "true",
 			"mail.smtp.host":          "",
 			"mail.smtp.port":          "",
