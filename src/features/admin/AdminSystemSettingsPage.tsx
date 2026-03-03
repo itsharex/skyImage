@@ -21,31 +21,45 @@ import { SplashScreen } from "@/components/SplashScreen";
 import { Turnstile } from "@/components/Turnstile";
 import { loadTurnstileScript } from "@/lib/turnstile";
 
+const defaultSystemSettingsForm: SystemSettingsInput = {
+  siteTitle: "",
+  siteDescription: "",
+  siteSlogan: "",
+  homeBadgeText: "",
+  homeIntroText: "",
+  homePrimaryCtaText: "",
+  homeDashboardCtaText: "",
+  homeSecondaryCtaText: "",
+  homeFeature1Title: "",
+  homeFeature1Desc: "",
+  homeFeature2Title: "",
+  homeFeature2Desc: "",
+  homeFeature3Title: "",
+  homeFeature3Desc: "",
+  about: "",
+  enableGallery: true,
+  enableApi: true,
+  allowRegistration: true,
+  smtpHost: "",
+  smtpPort: "",
+  smtpUsername: "",
+  smtpPassword: "",
+  smtpSecure: false,
+  enableRegisterVerify: false,
+  enableLoginNotification: false,
+  turnstileSiteKey: "",
+  turnstileSecretKey: "",
+  enableTurnstile: false,
+  accountDisabledNotice: ""
+};
+
 export function AdminSystemSettingsPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery<SystemSettingsResponse>({
     queryKey: ["admin", "system-settings"],
     queryFn: fetchSystemSettings
   });
-  const [form, setForm] = useState<SystemSettingsInput>({
-    siteTitle: "",
-    siteDescription: "",
-    about: "",
-    enableGallery: true,
-    enableApi: true,
-    allowRegistration: true,
-    smtpHost: "",
-    smtpPort: "",
-    smtpUsername: "",
-    smtpPassword: "",
-    smtpSecure: false,
-    enableRegisterVerify: false,
-    enableLoginNotification: false,
-    turnstileSiteKey: "",
-    turnstileSecretKey: "",
-    enableTurnstile: false,
-    accountDisabledNotice: ""
-  });
+  const [form, setForm] = useState<SystemSettingsInput>(defaultSystemSettingsForm);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const [turnstileLastVerifiedAt, setTurnstileLastVerifiedAt] = useState<string | null>(null);
   const [showTurnstileTester, setShowTurnstileTester] = useState(false);
@@ -59,7 +73,7 @@ export function AdminSystemSettingsPage() {
     if (!initialForm) {
       return false;
     }
-    const keys = Object.keys(initialForm) as (keyof SystemSettingsInput)[];
+    const keys = Object.keys(defaultSystemSettingsForm) as (keyof SystemSettingsInput)[];
     return keys.some((key) => initialForm[key] !== form[key]);
   }, [initialForm, form]);
 
@@ -70,8 +84,12 @@ export function AdminSystemSettingsPage() {
         turnstileLastVerifiedAt,
         ...rest
       } = data;
-      setForm(rest);
-      setInitialForm(rest);
+      const normalized = {
+        ...defaultSystemSettingsForm,
+        ...rest
+      };
+      setForm(normalized);
+      setInitialForm(normalized);
       setTurnstileVerified(verified);
       setTurnstileLastVerifiedAt(turnstileLastVerifiedAt || null);
       setShowTurnstileTester(false);
@@ -237,6 +255,107 @@ export function AdminSystemSettingsPage() {
               value={form.siteDescription}
               onChange={(e) => handleChange("siteDescription", e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>首页标语</Label>
+            <Input
+              value={form.siteSlogan}
+              onChange={(e) => handleChange("siteSlogan", e.target.value)}
+              placeholder="简单、稳定、可扩展的图像托管平台"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>首页徽标文案</Label>
+            <Input
+              value={form.homeBadgeText}
+              onChange={(e) => handleChange("homeBadgeText", e.target.value)}
+              placeholder="新首页"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>首页介绍文案</Label>
+            <Textarea
+              value={form.homeIntroText}
+              onChange={(e) => handleChange("homeIntroText", e.target.value)}
+              rows={3}
+              placeholder="面向团队和个人的现代化图像托管面板..."
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>按钮文案（未登录）</Label>
+              <Input
+                value={form.homePrimaryCtaText}
+                onChange={(e) => handleChange("homePrimaryCtaText", e.target.value)}
+                placeholder="登录系统"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>按钮文案（已登录）</Label>
+              <Input
+                value={form.homeDashboardCtaText}
+                onChange={(e) => handleChange("homeDashboardCtaText", e.target.value)}
+                placeholder="进入控制台"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>次按钮文案（注册）</Label>
+            <Input
+              value={form.homeSecondaryCtaText}
+              onChange={(e) => handleChange("homeSecondaryCtaText", e.target.value)}
+              placeholder="注册账号"
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>功能卡片 1 标题</Label>
+              <Input
+                value={form.homeFeature1Title}
+                onChange={(e) => handleChange("homeFeature1Title", e.target.value)}
+                placeholder="图像管理"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>功能卡片 1 描述</Label>
+              <Input
+                value={form.homeFeature1Desc}
+                onChange={(e) => handleChange("homeFeature1Desc", e.target.value)}
+                placeholder="上传、检索、批量操作和链接复制一体化。"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>功能卡片 2 标题</Label>
+              <Input
+                value={form.homeFeature2Title}
+                onChange={(e) => handleChange("homeFeature2Title", e.target.value)}
+                placeholder="权限与安全"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>功能卡片 2 描述</Label>
+              <Input
+                value={form.homeFeature2Desc}
+                onChange={(e) => handleChange("homeFeature2Desc", e.target.value)}
+                placeholder="支持角色组、注册策略和登录验证配置。"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>功能卡片 3 标题</Label>
+              <Input
+                value={form.homeFeature3Title}
+                onChange={(e) => handleChange("homeFeature3Title", e.target.value)}
+                placeholder="可配置品牌信息"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>功能卡片 3 描述</Label>
+              <Input
+                value={form.homeFeature3Desc}
+                onChange={(e) => handleChange("homeFeature3Desc", e.target.value)}
+                placeholder="站点标题、描述和首页标语均可在系统设置中管理。"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex items-center space-x-2">

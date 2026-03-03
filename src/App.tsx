@@ -29,6 +29,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import { SiteMetaWatcher } from "@/components/SiteMetaWatcher";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
+import { HomePage } from "@/features/home/HomePage";
 
 export default function App() {
   const {
@@ -66,6 +67,7 @@ export default function App() {
         {!installed && <Route path="/installer" element={<InstallerPage />} />}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        {installed && <Route path="/" element={<HomePage />} />}
         {installed && (
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard/*" element={<AppShell />}>
@@ -94,7 +96,6 @@ export default function App() {
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Route>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
         )}
         <Route

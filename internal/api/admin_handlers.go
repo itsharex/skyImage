@@ -469,6 +469,18 @@ func (s *Server) handleAdminUpdateSettings(c *gin.Context) {
 type systemSettingsPayload struct {
 	SiteTitle               string `json:"siteTitle"`
 	SiteDescription         string `json:"siteDescription"`
+	SiteSlogan              string `json:"siteSlogan"`
+	HomeBadgeText           string `json:"homeBadgeText"`
+	HomeIntroText           string `json:"homeIntroText"`
+	HomePrimaryCtaText      string `json:"homePrimaryCtaText"`
+	HomeDashboardCtaText    string `json:"homeDashboardCtaText"`
+	HomeSecondaryCtaText    string `json:"homeSecondaryCtaText"`
+	HomeFeature1Title       string `json:"homeFeature1Title"`
+	HomeFeature1Desc        string `json:"homeFeature1Desc"`
+	HomeFeature2Title       string `json:"homeFeature2Title"`
+	HomeFeature2Desc        string `json:"homeFeature2Desc"`
+	HomeFeature3Title       string `json:"homeFeature3Title"`
+	HomeFeature3Desc        string `json:"homeFeature3Desc"`
 	About                   string `json:"about"`
 	EnableGallery           bool   `json:"enableGallery"`
 	EnableApi               bool   `json:"enableApi"`
@@ -509,6 +521,18 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 		systemSettingsPayload: systemSettingsPayload{
 			SiteTitle:               settings["site.title"],
 			SiteDescription:         settings["site.description"],
+			SiteSlogan:              settings["site.slogan"],
+			HomeBadgeText:           settings["home.badge_text"],
+			HomeIntroText:           settings["home.intro_text"],
+			HomePrimaryCtaText:      settings["home.primary_cta_text"],
+			HomeDashboardCtaText:    settings["home.dashboard_cta_text"],
+			HomeSecondaryCtaText:    settings["home.secondary_cta_text"],
+			HomeFeature1Title:       settings["home.feature1_title"],
+			HomeFeature1Desc:        settings["home.feature1_desc"],
+			HomeFeature2Title:       settings["home.feature2_title"],
+			HomeFeature2Desc:        settings["home.feature2_desc"],
+			HomeFeature3Title:       settings["home.feature3_title"],
+			HomeFeature3Desc:        settings["home.feature3_desc"],
 			About:                   settings["site.about"],
 			EnableGallery:           settings["features.gallery"] != "false",
 			EnableApi:               settings["features.api"] != "false",
@@ -575,6 +599,18 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 	values := map[string]string{
 		"site.title":                  payload.SiteTitle,
 		"site.description":            payload.SiteDescription,
+		"site.slogan":                 payload.SiteSlogan,
+		"home.badge_text":             payload.HomeBadgeText,
+		"home.intro_text":             payload.HomeIntroText,
+		"home.primary_cta_text":       payload.HomePrimaryCtaText,
+		"home.dashboard_cta_text":     payload.HomeDashboardCtaText,
+		"home.secondary_cta_text":     payload.HomeSecondaryCtaText,
+		"home.feature1_title":         payload.HomeFeature1Title,
+		"home.feature1_desc":          payload.HomeFeature1Desc,
+		"home.feature2_title":         payload.HomeFeature2Title,
+		"home.feature2_desc":          payload.HomeFeature2Desc,
+		"home.feature3_title":         payload.HomeFeature3Title,
+		"home.feature3_desc":          payload.HomeFeature3Desc,
 		"site.about":                  payload.About,
 		"features.gallery":            strconv.FormatBool(payload.EnableGallery),
 		"features.api":                strconv.FormatBool(payload.EnableApi),

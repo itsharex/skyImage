@@ -130,6 +130,18 @@ export async function fetchAdminMetrics() {
 export type SiteConfig = {
   title: string;
   description: string;
+  slogan?: string;
+  homeBadgeText?: string;
+  homeIntroText?: string;
+  homePrimaryCtaText?: string;
+  homeDashboardCtaText?: string;
+  homeSecondaryCtaText?: string;
+  homeFeature1Title?: string;
+  homeFeature1Desc?: string;
+  homeFeature2Title?: string;
+  homeFeature2Desc?: string;
+  homeFeature3Title?: string;
+  homeFeature3Desc?: string;
   about: string;
   enableGallery: boolean;
   enableApi: boolean;
@@ -420,6 +432,18 @@ export async function deleteAdminImagesBatch(ids: number[]) {
 export type SystemSettingsInput = {
   siteTitle: string;
   siteDescription: string;
+  siteSlogan: string;
+  homeBadgeText: string;
+  homeIntroText: string;
+  homePrimaryCtaText: string;
+  homeDashboardCtaText: string;
+  homeSecondaryCtaText: string;
+  homeFeature1Title: string;
+  homeFeature1Desc: string;
+  homeFeature2Title: string;
+  homeFeature2Desc: string;
+  homeFeature3Title: string;
+  homeFeature3Desc: string;
   about: string;
   enableGallery: boolean;
   enableApi: boolean;
