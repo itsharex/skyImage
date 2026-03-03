@@ -5,33 +5,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"os"
+	"strconv"
+	"strings"
 
 	"skyimage/internal/data"
 )
 
 type Service struct {
-	db        *gorm.DB
-	jwtSecret []byte
+	db *gorm.DB
 }
 
 var (
 	ErrSuperAdminImmutable = errors.New("cannot modify super admin")
 )
 
-func New(db *gorm.DB, jwtSecret string) *Service {
+func New(db *gorm.DB) *Service {
 	return &Service{
-		db:        db,
-		jwtSecret: []byte(jwtSecret),
+		db: db,
 	}
 }
 
@@ -52,11 +46,6 @@ type CreateUserInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Role     string `json:"role"`
-}
-
-type AuthResult struct {
-	Token string    `json:"token"`
-	User  data.User `json:"user"`
 }
 
 type ProfileUpdateInput struct {
@@ -90,71 +79,18 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (data.User, er
 	return user, nil
 }
 
-func (s *Service) Login(ctx context.Context, in LoginInput) (AuthResult, error) {
+func (s *Service) Login(ctx context.Context, in LoginInput) (data.User, error) {
 	var user data.User
 	if err := s.db.WithContext(ctx).Preload("Group").Where("email = ?", in.Email).First(&user).Error; err != nil {
 		// 统一返回"邮箱/密码不正确"，不暴露用户是否存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AuthResult{}, errors.New("invalid credentials")
+			return data.User{}, errors.New("invalid credentials")
 		}
-		return AuthResult{}, err
+		return data.User{}, err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(in.Password)); err != nil {
-		return AuthResult{}, errors.New("invalid credentials")
+		return data.User{}, errors.New("invalid credentials")
 	}
-	if user.Status == 0 {
-		return AuthResult{}, errors.New("account disabled")
-	}
-	_ = s.hydrateUser(ctx, &user)
-	token, err := s.generateToken(user)
-	if err != nil {
-		return AuthResult{}, err
-	}
-	return AuthResult{Token: token, User: user}, nil
-}
-
-func (s *Service) generateToken(user data.User) (string, error) {
-	claims := jwt.MapClaims{
-		"sub":   fmt.Sprintf("%d", user.ID),
-		"email": user.Email,
-		"admin": user.IsAdmin,
-		"super": user.IsSuperAdmin,
-		"exp":   time.Now().Add(24 * time.Hour).Unix(),
-		"iat":   time.Now().Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
-}
-
-// GenerateToken 导出版本，供其他包使用
-func (s *Service) GenerateToken(user data.User) (string, error) {
-	return s.generateToken(user)
-}
-
-func (s *Service) ParseToken(ctx context.Context, tokenString string) (data.User, error) {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method %T", t.Method)
-		}
-		return s.jwtSecret, nil
-	})
-	if err != nil || !token.Valid {
-		return data.User{}, errors.New("invalid token")
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return data.User{}, errors.New("invalid claims")
-	}
-	idStr, _ := claims["sub"].(string)
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		return data.User{}, err
-	}
-	var user data.User
-	if err := s.db.WithContext(ctx).Preload("Group").First(&user, id).Error; err != nil {
-		return data.User{}, err
-	}
-	// Check if user account is disabled
 	if user.Status == 0 {
 		return data.User{}, errors.New("account disabled")
 	}

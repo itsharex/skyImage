@@ -5,15 +5,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
 
 export const apiClient = axios.create({
   baseURL: apiBase,
-  withCredentials: false
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  withCredentials: true
 });
 
 apiClient.interceptors.response.use(
@@ -79,7 +71,7 @@ export async function runInstaller(payload: {
 }
 
 export async function login(payload: { email: string; password: string; turnstileToken?: string }) {
-  const res = await apiClient.post<{ data: { token: string; user: any } }>(
+  const res = await apiClient.post<{ data: { user: any } }>(
     "/auth/login",
     payload
   );
@@ -98,8 +90,12 @@ export async function register(payload: {
   verificationCode: string;
   turnstileToken?: string;
 }) {
-  const res = await apiClient.post<{ data: any }>("/auth/register", payload);
+  const res = await apiClient.post<{ data: { user: any } }>("/auth/register", payload);
   return res.data.data;
+}
+
+export async function logout() {
+  await apiClient.post("/auth/logout");
 }
 
 export async function fetchRegistrationStatus() {

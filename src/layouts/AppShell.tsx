@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CapacityMeter } from "@/components/CapacityMeter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/state/auth";
-import { fetchSiteConfig } from "@/lib/api";
+import { fetchSiteConfig, logout } from "@/lib/api";
 
 type NavItem = {
   to: string;
@@ -181,7 +181,12 @@ export function AppShell() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await logout();
+                } catch {
+                  // Ignore logout request failure and clear local state anyway.
+                }
                 clear();
                 window.location.href = "/login";
               }}

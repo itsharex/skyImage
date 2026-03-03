@@ -27,7 +27,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 func TestUpdateProfile_BothVisibilityAndTheme(t *testing.T) {
 	db := setupTestDB(t)
-	service := New(db, "test-secret")
+	service := New(db)
 
 	// Create a test user
 	user := data.User{
@@ -72,7 +72,7 @@ func TestUpdateProfile_BothVisibilityAndTheme(t *testing.T) {
 
 func TestUpdateProfile_OnlyVisibility(t *testing.T) {
 	db := setupTestDB(t)
-	service := New(db, "test-secret")
+	service := New(db)
 
 	// Create a test user with existing theme preference
 	existingConfigs := map[string]interface{}{

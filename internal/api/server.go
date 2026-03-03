@@ -21,6 +21,7 @@ import (
 	"skyimage/internal/installer"
 	"skyimage/internal/mail"
 	"skyimage/internal/middleware"
+	"skyimage/internal/session"
 	"skyimage/internal/turnstile"
 	"skyimage/internal/users"
 	"skyimage/internal/verification"
@@ -38,6 +39,7 @@ type Server struct {
 	mail         *mail.Service
 	turnstile    *turnstile.Service
 	verification *verification.Service
+	session      *session.Manager
 	authLimiter  *requestLimiter
 	publicPaths  map[string]struct{}
 }
@@ -80,10 +82,13 @@ func (s *Server) applyRuntimeConfig(cfg config.Config, db *gorm.DB) {
 	adminService := admin.New(db)
 	s.admin = adminService
 	s.files = files.New(db, cfg)
-	s.users = users.New(db, cfg.JWTSecret)
+	s.users = users.New(db)
 	s.mail = mail.New(adminService)
 	s.turnstile = turnstile.New(adminService)
 	s.verification = verification.New()
+	if s.session == nil {
+		s.session = session.NewManager(24 * time.Hour)
+	}
 	if s.installer != nil {
 		s.installer.SetRuntime(db, cfg)
 	}
@@ -329,7 +334,8 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		s.mu.RLock()
 		userService := s.users
+		sessionManager := s.session
 		s.mu.RUnlock()
-		middleware.Auth(userService)(c)
+		middleware.Auth(userService, sessionManager)(c)
 	}
 }

@@ -91,11 +91,11 @@ export function RegisterPage() {
     onSuccess: (data) => {
       toast.success("注册成功！正在跳转...");
       // 注册成功后自动登录
-      if (data.token && data.user) {
-        setAuth({ token: data.token, user: data.user });
+      if (data.user) {
+        setAuth({ user: data.user });
         navigate("/dashboard", { replace: true });
       } else {
-        // 如果没有返回token，跳转到登录页
+        // 如果没有返回用户信息，跳转到登录页
         navigate("/login", { replace: true });
       }
     },

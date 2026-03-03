@@ -14,7 +14,7 @@ export function ApiDocsPage() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            目前共用同一套 JWT 鉴权机制。获取 token：<Badge variant="secondary">POST /api/auth/login</Badge>
+            目前使用 Cookie + Session 鉴权。登录后会自动写入会话 Cookie：<Badge variant="secondary">POST /api/auth/login</Badge>
           </p>
           <p>
             上传文件：<Badge variant="secondary">POST /api/files</Badge>，支持表单字段{" "}

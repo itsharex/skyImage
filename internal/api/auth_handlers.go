@@ -11,6 +11,7 @@ import (
 
 	"skyimage/internal/data"
 	"skyimage/internal/middleware"
+	"skyimage/internal/session"
 	"skyimage/internal/users"
 )
 
@@ -19,6 +20,7 @@ func (s *Server) registerAuthRoutes(r *gin.RouterGroup) {
 	auth.POST("/login", s.handleLogin)
 	auth.POST("/register", s.handleRegister)
 	auth.POST("/send-verification-code", s.handleSendVerificationCode)
+	auth.POST("/logout", s.handleLogout)
 	auth.GET("/needs-setup", s.handleNeedsSetup)
 	auth.GET("/registration-status", s.handleRegistrationStatus)
 
@@ -176,14 +178,13 @@ func (s *Server) handleRegister(c *gin.Context) {
 		return
 	}
 
-	// 生成JWT token以便自动登录
-	token, err := s.users.GenerateToken(user)
+	sessionID, err := s.session.Create(user.ID)
 	if err != nil {
-		log.Printf("[注册] 生成token失败: %v", err)
-		// 即使token生成失败，也返回用户信息，前端会跳转到登录页
-		c.JSON(http.StatusOK, gin.H{"data": user})
+		log.Printf("[注册] 创建会话失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
+	s.writeSessionCookie(c, sessionID)
 
 	// 发送注册成功邮件（异步，不阻塞响应）
 	go func() {
@@ -196,10 +197,7 @@ func (s *Server) handleRegister(c *gin.Context) {
 		}
 	}()
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{
-		"token": token,
-		"user":  user,
-	}})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"user": user}})
 }
 
 func (s *Server) handleLogin(c *gin.Context) {
@@ -242,24 +240,69 @@ func (s *Server) handleLogin(c *gin.Context) {
 		}
 	}
 
-	result, err := s.users.Login(c.Request.Context(), input.LoginInput)
+	user, err := s.users.Login(c.Request.Context(), input.LoginInput)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+	sessionID, err := s.session.Create(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
+		return
+	}
+	s.writeSessionCookie(c, sessionID)
 
 	// 发送登录提醒邮件（异步，不阻塞响应）
 	go func() {
 		ctx := context.Background()
-		log.Printf("[邮件] 准备发送登录提醒邮件到: %s, 用户: %s, IP: %s", result.User.Email, result.User.Name, clientIP)
-		if err := s.mail.SendLoginNotification(ctx, result.User.Email, result.User.Name, clientIP); err != nil {
+		log.Printf("[邮件] 准备发送登录提醒邮件到: %s, 用户: %s, IP: %s", user.Email, user.Name, clientIP)
+		if err := s.mail.SendLoginNotification(ctx, user.Email, user.Name, clientIP); err != nil {
 			log.Printf("[邮件] 发送登录提醒邮件失败: %v", err)
 		} else {
 			log.Printf("[邮件] 登录提醒邮件发送成功")
 		}
 	}()
 
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"user": user}})
+}
+
+func (s *Server) handleLogout(c *gin.Context) {
+	if sessionID, err := c.Cookie(session.CookieName); err == nil && sessionID != "" {
+		s.session.Delete(sessionID)
+	}
+	s.clearSessionCookie(c)
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logged out"}})
+}
+
+func (s *Server) writeSessionCookie(c *gin.Context, sessionID string) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     session.CookieName,
+		Value:    sessionID,
+		Path:     "/",
+		MaxAge:   int(s.session.TTL().Seconds()),
+		HttpOnly: true,
+		Secure:   isSecureRequest(c),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (s *Server) clearSessionCookie(c *gin.Context) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     session.CookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   isSecureRequest(c),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
 }
 
 func (s *Server) handleMe(c *gin.Context) {

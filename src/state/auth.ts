@@ -19,7 +19,7 @@ type User = {
 type AuthState = {
   token: string | null;
   user: User | null;
-  setAuth: (payload: { token: string; user: User }) => void;
+  setAuth: (payload: { user: User }) => void;
   clear: () => void;
   hydrate: () => void;
   setUser: (user: User) => void;
@@ -140,7 +140,7 @@ const readStorage = () => {
   if (!raw) return { token: null, user: null };
   try {
     const parsed = JSON.parse(raw);
-    return { token: parsed.token, user: normalizeUser(parsed.user) };
+    return { token: parsed.token ?? "session", user: normalizeUser(parsed.user) };
   } catch {
     return { token: null, user: null };
   }
@@ -151,13 +151,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   setAuth: (payload) => {
     const normalizedUser = normalizeUser(payload.user);
+    const token = "session";
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         storageKey,
-        JSON.stringify({ token: payload.token, user: normalizedUser })
+        JSON.stringify({ token, user: normalizedUser })
       );
     }
-    set({ token: payload.token, user: normalizedUser });
+    set({ token, user: normalizedUser });
   },
   clear: () => {
     if (typeof window !== "undefined") {
@@ -225,6 +226,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('[Auth] Failed to refresh user:', error);
       const status = (error as any)?.status;
       const message = (error as Error)?.message?.toLowerCase?.();
+      if (status === 401) {
+        get().clear();
+        return;
+      }
       const disabled =
         status === 403 && message?.includes("account disabled");
       if (disabled) {

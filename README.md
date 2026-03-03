@@ -48,7 +48,7 @@ Docker 部署会挂载以下目录：
 - **Gin** - Web 框架
 - **GORM** - ORM 数据库操作
 - **Viper** - 配置管理
-- **JWT** - 身份认证
+- **Cookie + Session** - 身份认证
 
 ### 前端
 - **React 18** - 用户界面框架

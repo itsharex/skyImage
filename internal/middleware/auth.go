@@ -1,30 +1,42 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"skyimage/internal/data"
+	"skyimage/internal/session"
 	"skyimage/internal/users"
 )
 
 const userContextKey = "currentUser"
 
-func Auth(userService *users.Service) gin.HandlerFunc {
+func Auth(userService *users.Service, sessionManager *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		auth := c.GetHeader("Authorization")
-		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+		sessionID, err := c.Cookie(session.CookieName)
+		if err != nil || sessionID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing session"})
 			return
 		}
-		token := strings.TrimPrefix(auth, "Bearer ")
-		user, err := userService.ParseToken(c.Request.Context(), token)
+
+		userID, ok := sessionManager.Resolve(sessionID)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid session"})
+			return
+		}
+
+		user, err := userService.FindByID(c.Request.Context(), userID)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				sessionManager.Delete(sessionID)
+			}
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
+
 		// Check if user account is disabled
 		if user.Status == 0 {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "account disabled"})

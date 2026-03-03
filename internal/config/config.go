@@ -20,7 +20,6 @@ type Config struct {
 	DatabasePassword  string `mapstructure:"DATABASE_PASSWORD"`
 	StoragePath       string `mapstructure:"STORAGE_PATH"`
 	PublicBaseURL     string `mapstructure:"PUBLIC_BASE_URL"`
-	JWTSecret         string `mapstructure:"JWT_SECRET"`
 	LegacyDSN         string `mapstructure:"LEGACY_DSN"`
 	FrontendDist      string `mapstructure:"FRONTEND_DIST"`
 	AllowRegistration bool   `mapstructure:"ALLOW_REGISTRATION"`
@@ -31,13 +30,13 @@ func Load() (Config, error) {
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 	viper.AddConfigPath(".")
-	
+
 	// 设置默认值
 	setDefaults()
-	
+
 	// 启用自动环境变量读取
 	viper.AutomaticEnv()
-	
+
 	// 显式绑定所有需要的环境变量
 	viper.BindEnv("HTTP_ADDR")
 	viper.BindEnv("DATABASE_PATH")
@@ -49,7 +48,6 @@ func Load() (Config, error) {
 	viper.BindEnv("DATABASE_PASSWORD")
 	viper.BindEnv("STORAGE_PATH")
 	viper.BindEnv("PUBLIC_BASE_URL")
-	viper.BindEnv("JWT_SECRET")
 	viper.BindEnv("LEGACY_DSN")
 	viper.BindEnv("FRONTEND_DIST")
 	viper.BindEnv("ALLOW_REGISTRATION")
@@ -59,10 +57,6 @@ func Load() (Config, error) {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("unmarshal config: %w", err)
-	}
-
-	if cfg.JWTSecret == "" {
-		return Config{}, fmt.Errorf("JWT_SECRET must be set")
 	}
 
 	if err := ensurePaths(&cfg); err != nil {

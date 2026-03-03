@@ -52,7 +52,7 @@ export function LoginPage() {
   const mutation = useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      setAuth(data);
+      setAuth({ user: data.user });
       toast.success("登录成功");
       const redirect = (location.state as any)?.from?.pathname ?? "/dashboard";
       navigate(redirect, { replace: true });
