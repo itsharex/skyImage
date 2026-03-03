@@ -1,6 +1,7 @@
 import {
   Activity,
   Brush,
+  ChevronDown,
   CloudUpload,
   GaugeCircle,
   Image as ImageIcon,
@@ -14,9 +15,10 @@ import {
   Users,
   Users2
 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 import { CapacityMeter } from "@/components/CapacityMeter";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -39,9 +41,10 @@ import { useAuthStore } from "@/state/auth";
 import { fetchSiteConfig, logout } from "@/lib/api";
 
 type NavItem = {
-  to: string;
+  to?: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
+  children?: NavItem[];
 };
 
 type NavSection = {
@@ -51,6 +54,13 @@ type NavSection = {
 
 function SidebarNavSections({ sections }: { sections: NavSection[] }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+
+  const isItemActive = (item: NavItem) => {
+    if (!item.to) return false;
+    return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+  };
 
   return (
     <>
@@ -60,27 +70,100 @@ function SidebarNavSections({ sections }: { sections: NavSection[] }) {
           <SidebarGroupContent>
             <SidebarMenu>
               {section.items.map((item, index) => (
-                <SidebarMenuItem key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    end={section.title === undefined && index === 0}
-                    onClick={() => {
-                      if (isMobile) {
-                        setOpenMobile(false);
+                <SidebarMenuItem key={item.to ?? item.label}>
+                  {item.children?.length ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedMenus((prev) => ({
+                            ...prev,
+                            [item.label]:
+                              prev[item.label] === undefined
+                                ? !item.children?.some((child) => isItemActive(child))
+                                : !prev[item.label]
+                          }))
+                        }
+                        className={cn(
+                          "flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm transition-colors",
+                          "text-foreground hover:bg-accent hover:text-accent-foreground",
+                          item.children.some((child) => isItemActive(child)) &&
+                            "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {item.icon ? <item.icon className="h-4 w-4" /> : null}
+                        <span className="flex-1 text-left">{item.label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform",
+                            (
+                              expandedMenus[item.label] ??
+                              item.children.some((child) => isItemActive(child))
+                            )
+                              ? "rotate-180"
+                              : ""
+                          )}
+                        />
+                      </button>
+                      <div
+                        className={cn(
+                          "ml-4 overflow-hidden border-l border-border pl-3 transition-all",
+                          (
+                            expandedMenus[item.label] ??
+                            item.children.some((child) => isItemActive(child))
+                          )
+                            ? "mt-1 max-h-40"
+                            : "max-h-0"
+                        )}
+                      >
+                        <SidebarMenu className="space-y-1 py-1">
+                          {item.children.map((child) => (
+                            <SidebarMenuItem key={child.to}>
+                              <NavLink
+                                to={child.to!}
+                                onClick={() => {
+                                  if (isMobile) {
+                                    setOpenMobile(false);
+                                  }
+                                }}
+                                className={({ isActive }) =>
+                                  cn(
+                                    "flex h-8 items-center rounded-md px-2 text-sm transition-colors",
+                                    isActive
+                                      ? "bg-accent text-accent-foreground"
+                                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                  )
+                                }
+                              >
+                                {child.label}
+                              </NavLink>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </div>
+                    </>
+                  ) : (
+                    <NavLink
+                      to={item.to!}
+                      end={section.title === undefined && index === 0}
+                      onClick={() => {
+                        if (isMobile) {
+                          setOpenMobile(false);
+                        }
+                      }}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",
+                          isActive
+                            ? "bg-accent text-accent-foreground"
+                            : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                        )
                       }
-                    }}
-                    className={({ isActive }) =>
-                      [
-                        "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",
-                        isActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground"
-                      ].join(" ")
-                    }
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </NavLink>
+                    >
+                      {item.icon ? <item.icon className="h-4 w-4" /> : null}
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -162,7 +245,14 @@ export function AppShell() {
           { to: "/dashboard/admin/groups", label: "角色组", icon: Users },
           { to: "/dashboard/admin/users", label: "用户管理", icon: Users2 },
           { to: "/dashboard/admin/strategies", label: "储存策略", icon: Layers3 },
-          { to: "/dashboard/admin/settings", label: "系统设置", icon: ServerCog }
+          {
+            label: "系统设置",
+            icon: ServerCog,
+            children: [
+              { to: "/dashboard/admin/settings/site", label: "站点信息" },
+              { to: "/dashboard/admin/settings/system", label: "系统设置" }
+            ]
+          }
         ]
       });
     }

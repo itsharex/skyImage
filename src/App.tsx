@@ -20,6 +20,7 @@ import { AdminGroupsPage } from "@/features/admin/AdminGroupsPage";
 import { AdminImagesPage } from "@/features/admin/AdminImagesPage";
 import { AdminStrategiesPage } from "@/features/admin/AdminStrategiesPage";
 import { AdminSystemSettingsPage } from "@/features/admin/AdminSystemSettingsPage";
+import { AdminSiteSettingsPage } from "@/features/admin/AdminSiteSettingsPage";
 import { AdminGroupEditorPage } from "@/features/admin/AdminGroupEditorPage";
 import { AdminStrategyEditorPage } from "@/features/admin/AdminStrategyEditorPage";
 import { AdminUserCreatePage } from "@/features/users/AdminUserCreatePage";
@@ -92,7 +93,9 @@ export default function App() {
                 <Route path="admin/strategies" element={<AdminStrategiesPage />} />
                 <Route path="admin/strategies/new" element={<AdminStrategyEditorPage />} />
                 <Route path="admin/strategies/:id" element={<AdminStrategyEditorPage />} />
-                <Route path="admin/settings" element={<AdminSystemSettingsPage />} />
+                <Route path="admin/settings" element={<Navigate to="admin/settings/site" replace />} />
+                <Route path="admin/settings/site" element={<AdminSiteSettingsPage />} />
+                <Route path="admin/settings/system" element={<AdminSystemSettingsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Route>
