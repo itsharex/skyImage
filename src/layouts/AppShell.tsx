@@ -281,6 +281,16 @@ export function AppShell() {
     window.location.href = "/login";
   };
 
+  const getUserRole = () => {
+    if (user?.isSuperAdmin) {
+      return "超级管理员";
+    }
+    if (user?.isAdmin) {
+      return "管理员";
+    }
+    return "普通用户";
+  };
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -307,6 +317,7 @@ export function AppShell() {
                 <div className="px-3 py-2">
                   <p className="text-base font-semibold">{user?.name || "未知用户"}</p>
                   <p className="truncate pt-1 text-sm text-muted-foreground">{user?.email || "暂无邮箱"}</p>
+                  <p className="pt-1 text-xs text-muted-foreground">{getUserRole()}</p>
                 </div>
                 <button
                   type="button"
