@@ -56,6 +56,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 		"homeFeature3Title":     settings["home.feature3_title"],
 		"homeFeature3Desc":      settings["home.feature3_desc"],
 		"about":                 aboutText,
+		"aboutTitle":            settings["site.about_title"],
 		"notFoundMode":          settings["site.notfound_mode"],
 		"notFoundHeading":       settings["site.notfound_heading"],
 		"notFoundText":          settings["site.notfound_text"],

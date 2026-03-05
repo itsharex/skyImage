@@ -17,6 +17,7 @@ export function AboutPage() {
   const title = data?.title || "skyImage";
   const description = data?.description || "云端图床";
   const about = data?.about || "功能重构中，即将上线更多特性。";
+  const aboutTitle = data?.aboutTitle?.trim() || "项目简介";
   const version = data?.version || "未知版本";
 
   return (
@@ -33,7 +34,7 @@ export function AboutPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>项目简介</CardTitle>
+          <CardTitle>{aboutTitle}</CardTitle>
         </CardHeader>
         <CardContent className="prose max-w-none text-sm text-muted-foreground">
           {about}

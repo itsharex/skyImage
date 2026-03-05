@@ -39,6 +39,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   homeFeature3Title: "",
   homeFeature3Desc: "",
   about: "",
+  aboutTitle: "",
   notFoundMode: "template",
   notFoundHeading: "",
   notFoundText: "",
@@ -76,6 +77,7 @@ const siteFields: (keyof SystemSettingsInput)[] = [
   "homeFeature3Title",
   "homeFeature3Desc",
   "about",
+  "aboutTitle",
   "notFoundMode",
   "notFoundHeading",
   "notFoundText",
@@ -270,6 +272,17 @@ export function AdminSiteSettingsPage() {
                 onChange={(e) => handleChange("homeFeature3Desc", e.target.value)}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>关于页标题</Label>
+            <Input
+              value={form.aboutTitle}
+              onChange={(e) => handleChange("aboutTitle", e.target.value)}
+              placeholder="项目简介"
+            />
+            <p className="text-xs text-muted-foreground">
+              关于页面中卡片的标题，留空则显示"项目简介"
+            </p>
           </div>
           <div className="space-y-2">
             <Label>关于页内容</Label>

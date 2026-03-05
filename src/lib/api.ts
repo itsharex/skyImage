@@ -143,6 +143,7 @@ export type SiteConfig = {
   homeFeature3Title?: string;
   homeFeature3Desc?: string;
   about: string;
+  aboutTitle?: string;
   notFoundMode?: string;
   notFoundHeading?: string;
   notFoundText?: string;
@@ -458,6 +459,7 @@ export type SystemSettingsInput = {
   homeFeature3Title: string;
   homeFeature3Desc: string;
   about: string;
+  aboutTitle: string;
   notFoundMode: string;
   notFoundHeading: string;
   notFoundText: string;
