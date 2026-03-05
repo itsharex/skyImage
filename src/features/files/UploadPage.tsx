@@ -78,6 +78,10 @@ export function UploadPage() {
       status: "pending" as const
     }));
     setQueue((prev) => [...prev, ...next]);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, []);
 
   const removeItem = (id: string) => {
