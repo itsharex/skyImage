@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { UploadCloud, X, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -198,6 +199,24 @@ export function UploadPage() {
     setPreview(null);
   }, []);
 
+  const previewModal =
+    preview && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setPreview(null)}
+          >
+            <img
+              src={preview}
+              alt="预览"
+              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            />
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -389,18 +408,7 @@ export function UploadPage() {
         </CardContent>
       </Card>
 
-      {preview && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setPreview(null)}
-        >
-          <img
-            src={preview}
-            alt="预览"
-            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-          />
-        </div>
-      )}
+      {previewModal}
     </div>
   );
 }
