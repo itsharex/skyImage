@@ -524,6 +524,7 @@ export type SystemSettingsInput = {
   smtpPort: string;
   smtpUsername: string;
   smtpPassword: string;
+  smtpFrom: string;
   smtpSecure: boolean;
   enableRegisterVerify: boolean;
   enableLoginNotification: boolean;
@@ -555,6 +556,7 @@ export type TestSmtpPayload = {
   smtpPort: string;
   smtpUsername: string;
   smtpPassword: string;
+  smtpFrom: string;
   smtpSecure: boolean;
 };
 

@@ -514,6 +514,7 @@ type systemSettingsPayload struct {
 	SMTPPort                string `json:"smtpPort"`
 	SMTPUsername            string `json:"smtpUsername"`
 	SMTPPassword            string `json:"smtpPassword"`
+	SMTPFrom                string `json:"smtpFrom"`
 	SMTPSecure              bool   `json:"smtpSecure"`
 	EnableRegisterVerify    bool   `json:"enableRegisterVerify"`
 	EnableLoginNotification bool   `json:"enableLoginNotification"`
@@ -574,6 +575,7 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 			SMTPPort:                settings["mail.smtp.port"],
 			SMTPUsername:            settings["mail.smtp.username"],
 			SMTPPassword:            "",
+			SMTPFrom:                settings["mail.smtp.from"],
 			SMTPSecure:              settings["mail.smtp.secure"] == "true",
 			EnableRegisterVerify:    settings["mail.register.verify"] == "true",
 			EnableLoginNotification: settings["mail.login.notification"] == "true",
@@ -660,6 +662,7 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		"mail.smtp.port":              payload.SMTPPort,
 		"mail.smtp.username":          payload.SMTPUsername,
 		"mail.smtp.password":          smtpPassword,
+		"mail.smtp.from":              payload.SMTPFrom,
 		"mail.smtp.secure":            strconv.FormatBool(payload.SMTPSecure),
 		"mail.register.verify":        strconv.FormatBool(payload.EnableRegisterVerify),
 		"mail.login.notification":     strconv.FormatBool(payload.EnableLoginNotification),

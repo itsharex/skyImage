@@ -51,6 +51,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   smtpPort: "",
   smtpUsername: "",
   smtpPassword: "",
+  smtpFrom: "",
   smtpSecure: false,
   enableRegisterVerify: false,
   enableLoginNotification: false,
@@ -226,6 +227,7 @@ export function AdminSystemSettingsPage() {
       smtpPort: form.smtpPort,
       smtpUsername: form.smtpUsername,
       smtpPassword: form.smtpPassword,
+      smtpFrom: form.smtpFrom,
       smtpSecure: form.smtpSecure
     });
   };
@@ -275,6 +277,18 @@ export function AdminSystemSettingsPage() {
               value={form.smtpPassword}
               onChange={(e) => handleChange("smtpPassword", e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>发信邮箱</Label>
+            <Input
+              type="email"
+              placeholder="noreply@yourdomain.com"
+              value={form.smtpFrom}
+              onChange={(e) => handleChange("smtpFrom", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              邮件的发件人地址（如使用 Resend 等服务需要配置）
+            </p>
           </div>
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center space-x-2">

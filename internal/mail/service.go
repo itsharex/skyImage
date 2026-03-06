@@ -25,6 +25,7 @@ type SMTPConfig struct {
 	Port     string
 	Username string
 	Password string
+	From     string
 	Secure   bool
 }
 
@@ -38,10 +39,16 @@ func (s *Service) getConfig(ctx context.Context) (*SMTPConfig, error) {
 	port := settings["mail.smtp.port"]
 	username := settings["mail.smtp.username"]
 	password := settings["mail.smtp.password"]
+	from := settings["mail.smtp.from"]
 	secure := settings["mail.smtp.secure"] == "true"
 
 	if host == "" || port == "" || username == "" {
 		return nil, fmt.Errorf("SMTP 配置不完整")
+	}
+
+	// 如果没有配置发信邮箱，使用用户名作为发信邮箱（向后兼容）
+	if from == "" {
+		from = username
 	}
 
 	return &SMTPConfig{
@@ -49,6 +56,7 @@ func (s *Service) getConfig(ctx context.Context) (*SMTPConfig, error) {
 		Port:     port,
 		Username: username,
 		Password: password,
+		From:     from,
 		Secure:   secure,
 	}, nil
 }
@@ -63,7 +71,7 @@ func (s *Service) SendMail(ctx context.Context, to, subject, body string) error 
 }
 
 func (s *Service) SendMailWithConfig(config *SMTPConfig, to, subject, body string) error {
-	from := config.Username
+	from := config.From
 	toList := []string{to}
 
 	// 构建邮件消息（符合 RFC 5322 标准）
