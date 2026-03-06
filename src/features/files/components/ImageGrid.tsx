@@ -68,12 +68,16 @@ export function ImageGrid({
         setMenu(null);
       }
     };
-    window.addEventListener("click", handleClose);
-    window.addEventListener("contextmenu", handleClose);
-    window.addEventListener("scroll", handleClose, true);
-    window.addEventListener("resize", handleClose);
-    window.addEventListener("keydown", handleKey);
+    const timeoutId = setTimeout(() => {
+      window.addEventListener("click", handleClose);
+      window.addEventListener("contextmenu", handleClose);
+      window.addEventListener("scroll", handleClose, true);
+      window.addEventListener("resize", handleClose);
+      window.addEventListener("keydown", handleKey);
+    }, 0);
+    
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener("click", handleClose);
       window.removeEventListener("contextmenu", handleClose);
       window.removeEventListener("scroll", handleClose, true);
@@ -374,11 +378,13 @@ export function ImageGrid({
               }}
               onContextMenu={(event) => {
                 event.preventDefault();
-                if (selectedIds.size === 0) {
-                  setSelectedIds(new Set([item.id]));
-                  setMenu({ file: item, x: event.clientX, y: event.clientY, scope: "single" });
-                } else {
+                const isItemSelected = selectedIds.has(item.id);
+                const hasOtherSelections = selectedIds.size > 0;
+
+                if (isItemSelected && hasOtherSelections) {
                   setMenu({ file: item, x: event.clientX, y: event.clientY, scope: "selection" });
+                } else {
+                  setMenu({ file: item, x: event.clientX, y: event.clientY, scope: "single" });
                 }
                 setMenuPos({ x: event.clientX, y: event.clientY });
               }}
