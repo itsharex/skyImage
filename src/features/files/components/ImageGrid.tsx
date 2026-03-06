@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Fancybox } from "@fancyapps/ui";
+import "@fancyapps/ui/dist/fancybox/fancybox.css";
 
 import type { FileRecord } from "@/lib/api";
 import { normalizeFileUrl } from "@/lib/file-url";
@@ -69,6 +71,17 @@ export function ImageGrid({
   const [containerWidth, setContainerWidth] = useState(0);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
+  const items = files ?? [];
+
+  // 初始化 Fancybox
+  useEffect(() => {
+    Fancybox.bind("[data-fancybox='gallery']", {} as any);
+
+    return () => {
+      Fancybox.destroy();
+    };
+  }, [items]);
+
   useEffect(() => {
     if (!menu) {
       return;
@@ -115,8 +128,6 @@ export function ImageGrid({
     if (nextY < padding) nextY = padding;
     setMenuPos({ x: nextX, y: nextY });
   }, [menu]);
-
-  const items = files ?? [];
 
   // 提前测量容器宽度，避免先用错误默认值布局后再重排导致闪烁
   useLayoutEffect(() => {
@@ -470,11 +481,10 @@ export function ImageGrid({
                 const visibilityLabel = item.visibility === "public" ? "公开" : "私有";
                 const isSelected = selectedIds.has(item.id);
                 return (
-                  <button
+                  <div
                     key={item.id}
-                    type="button"
                     className={[
-                      "group relative overflow-hidden rounded-xl border bg-muted/30 text-left shadow-sm transition hover:shadow-lg",
+                      "group relative overflow-hidden rounded-xl border bg-muted/30 text-left shadow-sm transition hover:shadow-lg cursor-pointer select-none",
                       isSelected ? "ring-2 ring-primary/70" : ""
                     ].join(" ")}
                     style={{ 
@@ -487,7 +497,6 @@ export function ImageGrid({
                   toggleSelection(item.id);
                   return;
                 }
-                onPreview?.(item);
               }}
               onContextMenu={(event) => {
                 event.preventDefault();
@@ -530,9 +539,22 @@ export function ImageGrid({
                   )}
                 </div>
               </div>
+              <a
+                href={imageUrl}
+                data-fancybox="gallery"
+                data-caption={item.originalName}
+                className="absolute inset-0"
+                onClick={(e) => {
+                  if (hasSelection) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <span className="sr-only">查看图片</span>
+              </a>
               <span
                 className={[
-                  "absolute left-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded border text-[11px]",
+                  "absolute left-3 top-3 z-10 inline-flex h-5 w-5 items-center justify-center rounded border text-[11px] pointer-events-auto",
                   isSelected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-white/50 bg-black/30 text-white/80"
@@ -546,7 +568,7 @@ export function ImageGrid({
               </span>
               <button
                 type="button"
-                className="absolute right-3 top-3 rounded-md border border-white/40 bg-black/35 px-2 py-0.5 text-xs text-white/80 backdrop-blur transition hover:bg-black/50"
+                className="absolute right-3 top-3 z-10 rounded-md border border-white/40 bg-black/35 px-2 py-0.5 text-xs text-white/80 backdrop-blur transition hover:bg-black/50 pointer-events-auto"
                 onClick={(event) => {
                   event.stopPropagation();
                   const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -561,7 +583,7 @@ export function ImageGrid({
                   删除中...
                 </div>
               )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

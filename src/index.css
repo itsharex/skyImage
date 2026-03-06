@@ -260,3 +260,21 @@ body {
     --chart-5: 0 0% 30%;
   }
 }
+
+/* Fancybox 自定义样式 */
+.fancybox__container {
+  --fancybox-bg: rgba(0, 0, 0, 0.95);
+}
+
+.fancybox__slide {
+  padding: 60px 40px !important;
+}
+
+.fancybox__content {
+  max-width: 90vw !important;
+  max-height: 85vh !important;
+}
+
+.fancybox__image {
+  object-fit: contain !important;
+}
