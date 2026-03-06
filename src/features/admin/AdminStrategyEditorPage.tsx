@@ -77,7 +77,7 @@ export function AdminStrategyEditorPage() {
             url:
               target.configs?.url ||
               target.configs?.base_url ||
-              target.configs?.baseUrl ||
+          target.configs?.baseUrl ||
               "",
             webdav_endpoint:
               target.configs?.webdav_endpoint ||
@@ -104,7 +104,11 @@ export function AdminStrategyEditorPage() {
               target.configs?.webdavSkipTLSVerify ||
               false,
             allowed_extensions: allowedExtensions,
-            path_template: pathTemplate
+            path_template: pathTemplate,
+            enable_compression: target.configs?.enable_compression || false,
+            compression_quality: target.configs?.compression_quality || 85,
+            target_format: target.configs?.target_format || "",
+            process_formats: target.configs?.process_formats || ""
           }
         });
         setSelectedGroups(target.groups?.map((group) => group.id) || []);
@@ -187,7 +191,11 @@ export function AdminStrategyEditorPage() {
           Boolean(form.configs?.webdav_skip_tls_verify || form.configs?.webdavSkipTLSVerify),
         allowed_extensions: form.configs?.allowed_extensions || "",
         path_template: form.configs?.path_template || "{year}/{month}/{day}/{uuid}",
-        pattern: form.configs?.path_template || "{year}/{month}/{day}/{uuid}"
+        pattern: form.configs?.path_template || "{year}/{month}/{day}/{uuid}",
+        enable_compression: (form.configs as any)?.enable_compression || false,
+        compression_quality: (form.configs as any)?.compression_quality || 85,
+        target_format: (form.configs as any)?.target_format || "",
+        process_formats: (form.configs as any)?.process_formats || ""
       }
     } as StrategyRecord);
   };
@@ -372,6 +380,85 @@ export function AdminStrategyEditorPage() {
               placeholder="jpg,png,webp,mp4"
             />
             <p className="text-xs text-muted-foreground">使用英文逗号分隔，留空表示不限制。</p>
+          </div>
+          <div className="space-y-4 rounded-lg border p-4">
+            <h3 className="text-sm font-medium">图片处理配置</h3>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="enable-compression"
+                checked={Boolean((form.configs as any)?.enable_compression)}
+                onCheckedChange={(checked) => {
+                  const actualValue = checked === "indeterminate" ? false : checked;
+                  setForm((prev) => ({
+                    ...prev,
+                    configs: { ...prev.configs, enable_compression: actualValue }
+                  }));
+                }}
+              />
+              <Label htmlFor="enable-compression" className="cursor-pointer">
+                启用图片压缩
+              </Label>
+            </div>
+            {(form.configs as any)?.enable_compression && (
+              <div className="space-y-2">
+                <Label>压缩质量（1-100）</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={(form.configs as any)?.compression_quality || 85}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      configs: { ...prev.configs, compression_quality: parseInt(e.target.value) || 85 }
+                    }))
+                  }
+                  placeholder="85"
+                />
+                <p className="text-xs text-muted-foreground">推荐值：85，数值越高质量越好但文件越大。</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>目标格式（可选）</Label>
+              <Select
+                value={(form.configs as any)?.target_format || ""}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    configs: { ...prev.configs, target_format: value === "none" ? "" : value }
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="不转换格式" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">不转换格式</SelectItem>
+                  <SelectItem value="webp">WebP</SelectItem>
+                  <SelectItem value="jpeg">JPEG</SelectItem>
+                  <SelectItem value="png">PNG</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                将上传的图片转换为指定格式，仅对支持的格式生效。
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>处理格式范围（可选）</Label>
+              <Input
+                value={(form.configs as any)?.process_formats || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    configs: { ...prev.configs, process_formats: e.target.value }
+                  }))
+                }
+                placeholder="jpg,jpeg,png,webp"
+              />
+              <p className="text-xs text-muted-foreground">
+                指定哪些格式的图片可以被压缩或转换，使用英文逗号分隔。留空表示处理所有支持的图片格式（jpg、jpeg、png、webp、gif、bmp）。
+              </p>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>路径模板</Label>

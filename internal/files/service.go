@@ -72,17 +72,21 @@ type FileDTO struct {
 }
 
 type strategyConfig struct {
-	Driver            string
-	Root              string
-	Base              string
-	Pattern           string
-	Query             string
-	Exts              []string
-	WebDAVEndpoint    string
-	WebDAVUsername    string
-	WebDAVPassword    string
-	WebDAVBasePath    string
-	WebDAVSkipTLSCert bool
+	Driver             string
+	Root               string
+	Base               string
+	Pattern            string
+	Query              string
+	Exts               []string
+	WebDAVEndpoint     string
+	WebDAVUsername     string
+	WebDAVPassword     string
+	WebDAVBasePath     string
+	WebDAVSkipTLSCert  bool
+	EnableCompression  bool
+	CompressionQuality int
+	TargetFormat       string
+	ProcessFormats     []string
 }
 
 func (s *Service) Upload(ctx context.Context, user data.User, file *multipart.FileHeader, opts UploadOptions) (data.FileAsset, error) {
@@ -174,23 +178,23 @@ func (s *Service) Upload(ctx context.Context, user data.User, file *multipart.Fi
 	if headSize == 0 {
 		return data.FileAsset{}, errors.New("empty file")
 	}
-	
+
 	// 获取文件扩展名
 	originalExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(file.Filename)), ".")
-	
+
 	// 检测 MIME 类型
 	contentType := normalizeContentType(http.DetectContentType(head[:headSize]))
-	
+
 	// 双重验证：MIME 类型和文件扩展名必须都匹配
 	if !isAllowedMediaType(contentType) {
 		return data.FileAsset{}, fmt.Errorf("不支持的文件类型: %s", contentType)
 	}
-	
+
 	// 验证文件扩展名与 MIME 类型是否匹配
 	if !validateMimeExtensionMatch(contentType, originalExt) {
 		return data.FileAsset{}, fmt.Errorf("文件扩展名与内容类型不匹配")
 	}
-	
+
 	// 如果策略配置了允许的扩展名，进行额外检查
 	if len(cfg.Exts) > 0 {
 		if originalExt == "" || !extAllowed(cfg.Exts, originalExt) {
@@ -211,7 +215,54 @@ func (s *Service) Upload(ctx context.Context, user data.User, file *multipart.Fi
 			filepath.Ext(file.Filename),
 		)
 	}
-	storeResult, err := s.storeObject(ctx, cfg, relativePath, head[:headSize], handle)
+
+	// 读取完整文件内容用于图片处理
+	var fullData []byte
+	if cfg.EnableCompression || cfg.TargetFormat != "" {
+		// 重新打开文件读取完整内容
+		handle2, err := file.Open()
+		if err != nil {
+			return data.FileAsset{}, err
+		}
+		defer handle2.Close()
+
+		fullData, err = io.ReadAll(handle2)
+		if err != nil {
+			return data.FileAsset{}, err
+		}
+
+		// 处理图片（压缩和格式转换）
+		processConfig := ImageProcessConfig{
+			EnableCompression:  cfg.EnableCompression,
+			CompressionQuality: cfg.CompressionQuality,
+			TargetFormat:       cfg.TargetFormat,
+			SupportedFormats:   cfg.ProcessFormats,
+		}
+
+		processedData, newMimeType, err := ProcessImage(fullData, contentType, processConfig)
+		if err == nil && len(processedData) > 0 {
+			fullData = processedData
+			if newMimeType != "" && newMimeType != contentType {
+				contentType = newMimeType
+				// 更新文件扩展名
+				if newExt := GetExtensionForMimeType(newMimeType); newExt != "" {
+					oldExt := filepath.Ext(relativePath)
+					if oldExt != "" {
+						relativePath = strings.TrimSuffix(relativePath, oldExt) + "." + newExt
+					}
+				}
+			}
+		}
+	}
+
+	var storeResult storeObjectResult
+	if len(fullData) > 0 {
+		// 使用处理后的数据
+		storeResult, err = s.storeObject(ctx, cfg, relativePath, fullData, nil)
+	} else {
+		// 使用原始数据
+		storeResult, err = s.storeObject(ctx, cfg, relativePath, head[:headSize], handle)
+	}
 	if err != nil {
 		return data.FileAsset{}, err
 	}
@@ -399,7 +450,7 @@ func (s *Service) GetUserTrends(ctx context.Context, userID uint, days int) ([]U
 	}
 
 	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
-	
+
 	// 生成日期序列
 	trends := make([]UserTrendData, 0, days)
 	now := time.Now()
@@ -416,7 +467,7 @@ func (s *Service) GetUserTrends(ctx context.Context, userID uint, days int) ([]U
 		Date  string
 		Count int64
 	}
-	
+
 	var uploadCounts []DailyCount
 	err := s.db.WithContext(ctx).
 		Model(&data.FileAsset{}).
@@ -840,6 +891,15 @@ func (s *Service) parseStrategyConfig(strategy data.Strategy) strategyConfig {
 			}
 			cfg.WebDAVSkipTLSCert = boolFromAny(raw["webdav_skip_tls_verify"]) ||
 				boolFromAny(raw["webdavSkipTLSVerify"])
+
+			// 图片处理配置
+			cfg.EnableCompression = boolFromAny(raw["enable_compression"])
+			cfg.CompressionQuality = intFromAny(raw["compression_quality"])
+			if cfg.CompressionQuality <= 0 {
+				cfg.CompressionQuality = 85
+			}
+			cfg.TargetFormat = strings.ToLower(strings.TrimSpace(stringFromAny(raw["target_format"])))
+			cfg.ProcessFormats = parseExtensionsFromAny(raw["process_formats"])
 		}
 	}
 	if cfg.Pattern == "" {
@@ -981,7 +1041,6 @@ func randomDigits(length int) string {
 	}
 	return builder.String()
 }
-
 
 func joinPublicURL(base string, rel string) string {
 	trimmedBase := strings.TrimRight(strings.TrimSpace(base), "/")
@@ -1243,37 +1302,37 @@ func isAllowedMediaType(contentType string) bool {
 func validateMimeExtensionMatch(mimeType string, ext string) bool {
 	ext = strings.ToLower(strings.TrimSpace(ext))
 	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
-	
+
 	// 定义 MIME 类型与扩展名的映射关系
 	validMappings := map[string][]string{
-		"image/jpeg":        {"jpg", "jpeg"},
-		"image/png":         {"png"},
-		"image/gif":         {"gif"},
-		"image/webp":        {"webp"},
-		"image/bmp":         {"bmp"},
-		"image/tiff":        {"tiff", "tif"},
-		"image/avif":        {"avif"},
-		"image/x-icon":      {"ico"},
-		"video/mp4":         {"mp4"},
-		"video/webm":        {"webm"},
-		"video/ogg":         {"ogg", "ogv"},
-		"video/quicktime":   {"mov"},
-		"video/x-msvideo":   {"avi"},
-		"video/x-matroska":  {"mkv"},
-		"video/mpeg":        {"mpeg", "mpg"},
+		"image/jpeg":       {"jpg", "jpeg"},
+		"image/png":        {"png"},
+		"image/gif":        {"gif"},
+		"image/webp":       {"webp"},
+		"image/bmp":        {"bmp"},
+		"image/tiff":       {"tiff", "tif"},
+		"image/avif":       {"avif"},
+		"image/x-icon":     {"ico"},
+		"video/mp4":        {"mp4"},
+		"video/webm":       {"webm"},
+		"video/ogg":        {"ogg", "ogv"},
+		"video/quicktime":  {"mov"},
+		"video/x-msvideo":  {"avi"},
+		"video/x-matroska": {"mkv"},
+		"video/mpeg":       {"mpeg", "mpg"},
 	}
-	
+
 	allowedExts, exists := validMappings[mimeType]
 	if !exists {
 		return false
 	}
-	
+
 	for _, allowedExt := range allowedExts {
 		if ext == allowedExt {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

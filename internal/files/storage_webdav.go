@@ -41,6 +41,11 @@ func (s *Service) storeObject(ctx context.Context, cfg strategyConfig, relativeP
 	}
 }
 
+// storeObject 的重载版本，支持直接传入完整数据
+func (s *Service) storeObjectWithData(ctx context.Context, cfg strategyConfig, relativePath string, data []byte) (storeObjectResult, error) {
+	return s.storeObject(ctx, cfg, relativePath, data, nil)
+}
+
 func (s *Service) storeLocalObject(cfg strategyConfig, relativePath string, head []byte, remain io.Reader) (storeObjectResult, error) {
 	destPath := filepath.Join(cfg.Root, filepath.FromSlash(relativePath))
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
@@ -54,7 +59,14 @@ func (s *Service) storeLocalObject(cfg strategyConfig, relativePath string, head
 
 	md5Hasher := md5.New()
 	sha1Hasher := sha1.New()
-	reader := io.MultiReader(bytes.NewReader(head), remain)
+
+	var reader io.Reader
+	if remain != nil {
+		reader = io.MultiReader(bytes.NewReader(head), remain)
+	} else {
+		reader = bytes.NewReader(head)
+	}
+
 	size, err := io.Copy(dest, io.TeeReader(reader, io.MultiWriter(md5Hasher, sha1Hasher)))
 	if err != nil {
 		return storeObjectResult{}, err
@@ -85,7 +97,14 @@ func (s *Service) storeWebDAVObject(ctx context.Context, cfg strategyConfig, rel
 
 	md5Hasher := md5.New()
 	sha1Hasher := sha1.New()
-	reader := io.MultiReader(bytes.NewReader(head), remain)
+
+	var reader io.Reader
+	if remain != nil {
+		reader = io.MultiReader(bytes.NewReader(head), remain)
+	} else {
+		reader = bytes.NewReader(head)
+	}
+
 	size, err := io.Copy(tmp, io.TeeReader(reader, io.MultiWriter(md5Hasher, sha1Hasher)))
 	if err != nil {
 		return storeObjectResult{}, err
