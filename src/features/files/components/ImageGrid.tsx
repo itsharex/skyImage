@@ -3,6 +3,12 @@ import { toast } from "sonner";
 
 import type { FileRecord } from "@/lib/api";
 import { normalizeFileUrl } from "@/lib/file-url";
+
+// 固定行高（像素）
+const ROW_HEIGHT = 240;
+// 图片间距
+const GAP = 16;
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +63,11 @@ export function ImageGrid({
   const [batchBusy, setBatchBusy] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<number[] | null>(null);
   const [pendingDeleteLabel, setPendingDeleteLabel] = useState("");
+  
+  // 新增状态：容器引用、宽度和图片尺寸
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1200);
+  const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
   useEffect(() => {
     if (!menu) {
@@ -106,6 +117,98 @@ export function ImageGrid({
   }, [menu]);
 
   const items = files ?? [];
+
+  // 监听容器宽度变化（容器在图片尺寸加载完成后才会渲染，因此需要依赖 items/imageDimensions 重新绑定）
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setContainerWidth(element.offsetWidth);
+    };
+
+    updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, [items.length, imageDimensions.size]);
+
+  // 加载图片尺寸
+  useEffect(() => {
+    if (items.length === 0) return;
+    
+    const loadImageDimensions = async () => {
+      const newDimensions = new Map<number, { width: number; height: number }>();
+      
+      await Promise.all(
+        items.map((item) => {
+          return new Promise<void>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              newDimensions.set(item.id, { width: img.width, height: img.height });
+              resolve();
+            };
+            img.onerror = () => {
+              newDimensions.set(item.id, { width: 1, height: 1 });
+              resolve();
+            };
+            img.src = normalizeFileUrl(item.viewUrl || item.directUrl);
+          });
+        })
+      );
+      
+      setImageDimensions(newDimensions);
+    };
+    
+    loadImageDimensions();
+  }, [items]);
+
+  // 计算图片布局
+  const imageRows = useMemo(() => {
+    if (items.length === 0 || imageDimensions.size < items.length) {
+      return [];
+    }
+
+    const rows: Array<Array<{ item: FileRecord; width: number }>> = [];
+    let currentRow: Array<{ item: FileRecord; width: number }> = [];
+    let currentRowWidth = 0;
+
+    items.forEach((item, index) => {
+      const dims = imageDimensions.get(item.id) || { width: 1, height: 1 };
+      const aspectRatio = dims.width / dims.height;
+      const calculatedWidth = ROW_HEIGHT * aspectRatio;
+
+      const widthWithGap = currentRowWidth + (currentRow.length > 0 ? GAP : 0) + calculatedWidth;
+
+      if (currentRow.length === 0 || widthWithGap <= containerWidth * 1.1) {
+        currentRow.push({ item, width: calculatedWidth });
+        currentRowWidth = widthWithGap;
+      } else {
+        if (currentRow.length > 0) {
+          const scale = (containerWidth - (currentRow.length - 1) * GAP) / (currentRowWidth - (currentRow.length - 1) * GAP);
+          currentRow.forEach(img => {
+            img.width = img.width * scale;
+          });
+          rows.push(currentRow);
+        }
+        
+        currentRow = [{ item, width: calculatedWidth }];
+        currentRowWidth = calculatedWidth;
+      }
+
+      if (index === items.length - 1 && currentRow.length > 0) {
+        // 最后一行也进行缩放以填满容器
+        const scale = (containerWidth - (currentRow.length - 1) * GAP) / (currentRowWidth - (currentRow.length - 1) * GAP);
+        currentRow.forEach(img => {
+          img.width = img.width * scale;
+        });
+        rows.push(currentRow);
+      }
+    });
+
+    return rows;
+  }, [items, imageDimensions, containerWidth]);
 
   useEffect(() => {
     if (!items.length) {
@@ -356,20 +459,30 @@ export function ImageGrid({
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 sm:gap-4 lg:gap-5">
-        {items.map((item) => {
-          const imageUrl = normalizeFileUrl(item.viewUrl || item.directUrl);
-          const visibilityLabel = item.visibility === "public" ? "公开" : "私有";
-          const isSelected = selectedIds.has(item.id);
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={[
-                "group relative h-[240px] w-full overflow-hidden rounded-xl border bg-muted/30 text-left shadow-sm transition hover:shadow-lg sm:h-[260px] lg:h-[280px]",
-                isSelected ? "ring-2 ring-primary/70" : ""
-              ].join(" ")}
-              onClick={(event) => {
+      {imageDimensions.size < items.length ? (
+        <p className="text-sm text-muted-foreground">正在加载图片...</p>
+      ) : (
+        <div ref={containerRef} className="flex w-full flex-col" style={{ gap: `${GAP}px` }}>
+          {imageRows.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex w-full" style={{ gap: `${GAP}px`, height: `${ROW_HEIGHT}px` }}>
+              {row.map(({ item, width }) => {
+                const imageUrl = normalizeFileUrl(item.viewUrl || item.directUrl);
+                const visibilityLabel = item.visibility === "public" ? "公开" : "私有";
+                const isSelected = selectedIds.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={[
+                      "group relative overflow-hidden rounded-xl border bg-muted/30 text-left shadow-sm transition hover:shadow-lg",
+                      isSelected ? "ring-2 ring-primary/70" : ""
+                    ].join(" ")}
+                    style={{ 
+                      width: `${width}px`,
+                      height: `${ROW_HEIGHT}px`,
+                      flexShrink: 0
+                    }}
+                    onClick={(event) => {
                 if (event.metaKey || event.ctrlKey || event.shiftKey || hasSelection) {
                   toggleSelection(item.id);
                   return;
@@ -389,14 +502,12 @@ export function ImageGrid({
                 setMenuPos({ x: event.clientX, y: event.clientY });
               }}
             >
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted/60 via-transparent to-muted/40">
-                <img
-                  src={imageUrl}
-                  alt={item.originalName}
-                  className="max-h-full max-w-full object-contain"
-                  loading="lazy"
-                />
-              </div>
+              <img
+                src={imageUrl}
+                alt={item.originalName}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-80" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3">
                 <div className="flex items-center gap-2 text-white">
@@ -450,10 +561,13 @@ export function ImageGrid({
                   删除中...
                 </div>
               )}
-            </button>
-          );
-        })}
-      </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
 
       {menu && menuPos && (
         <div
