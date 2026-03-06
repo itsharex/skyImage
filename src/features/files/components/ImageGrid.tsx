@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { FileRecord } from "@/lib/api";
@@ -66,7 +66,7 @@ export function ImageGrid({
   
   // 新增状态：容器引用、宽度和图片尺寸
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(1200);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
   useEffect(() => {
@@ -118,8 +118,8 @@ export function ImageGrid({
 
   const items = files ?? [];
 
-  // 监听容器宽度变化（容器在图片尺寸加载完成后才会渲染，因此需要依赖 items/imageDimensions 重新绑定）
-  useEffect(() => {
+  // 提前测量容器宽度，避免先用错误默认值布局后再重排导致闪烁
+  useLayoutEffect(() => {
     const element = containerRef.current;
     if (!element) return;
 
@@ -132,7 +132,7 @@ export function ImageGrid({
     resizeObserver.observe(element);
 
     return () => resizeObserver.disconnect();
-  }, [items.length, imageDimensions.size]);
+  }, [isLoading, items.length]);
 
   // 加载图片尺寸
   useEffect(() => {
@@ -166,7 +166,7 @@ export function ImageGrid({
 
   // 计算图片布局
   const imageRows = useMemo(() => {
-    if (items.length === 0 || imageDimensions.size < items.length) {
+    if (items.length === 0 || imageDimensions.size < items.length || containerWidth <= 0) {
       return [];
     }
 
@@ -459,11 +459,11 @@ export function ImageGrid({
           </div>
         </div>
       )}
-      {imageDimensions.size < items.length ? (
-        <p className="text-sm text-muted-foreground">正在加载图片...</p>
-      ) : (
-        <div ref={containerRef} className="flex w-full flex-col" style={{ gap: `${GAP}px` }}>
-          {imageRows.map((row, rowIndex) => (
+      <div ref={containerRef} className="flex w-full flex-col" style={{ gap: `${GAP}px` }}>
+        {imageDimensions.size < items.length || containerWidth <= 0 ? (
+          <p className="text-sm text-muted-foreground">正在加载图片...</p>
+        ) : (
+          imageRows.map((row, rowIndex) => (
             <div key={rowIndex} className="flex w-full" style={{ gap: `${GAP}px`, height: `${ROW_HEIGHT}px` }}>
               {row.map(({ item, width }) => {
                 const imageUrl = normalizeFileUrl(item.viewUrl || item.directUrl);
@@ -565,9 +565,9 @@ export function ImageGrid({
                 );
               })}
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       {menu && menuPos && (
         <div
