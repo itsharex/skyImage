@@ -179,6 +179,7 @@ export type SiteConfig = {
   title: string;
   description: string;
   slogan?: string;
+  logo?: string;
   homeBadgeText?: string;
   homeIntroText?: string;
   homePrimaryCtaText?: string;
@@ -497,6 +498,7 @@ export type SystemSettingsInput = {
   siteTitle: string;
   siteDescription: string;
   siteSlogan: string;
+  siteLogo: string;
   homeBadgeText: string;
   homeIntroText: string;
   homePrimaryCtaText: string;

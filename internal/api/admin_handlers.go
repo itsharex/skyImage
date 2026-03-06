@@ -487,6 +487,7 @@ type systemSettingsPayload struct {
 	SiteTitle               string `json:"siteTitle"`
 	SiteDescription         string `json:"siteDescription"`
 	SiteSlogan              string `json:"siteSlogan"`
+	SiteLogo                string `json:"siteLogo"`
 	HomeBadgeText           string `json:"homeBadgeText"`
 	HomeIntroText           string `json:"homeIntroText"`
 	HomePrimaryCtaText      string `json:"homePrimaryCtaText"`
@@ -548,6 +549,7 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 			SiteTitle:               settings["site.title"],
 			SiteDescription:         settings["site.description"],
 			SiteSlogan:              settings["site.slogan"],
+			SiteLogo:                settings["site.logo"],
 			HomeBadgeText:           settings["home.badge_text"],
 			HomeIntroText:           settings["home.intro_text"],
 			HomePrimaryCtaText:      settings["home.primary_cta_text"],
@@ -635,6 +637,7 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		"site.title":                  payload.SiteTitle,
 		"site.description":            payload.SiteDescription,
 		"site.slogan":                 payload.SiteSlogan,
+		"site.logo":                   payload.SiteLogo,
 		"home.badge_text":             payload.HomeBadgeText,
 		"home.intro_text":             payload.HomeIntroText,
 		"home.primary_cta_text":       payload.HomePrimaryCtaText,

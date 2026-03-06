@@ -24,6 +24,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   siteTitle: "",
   siteDescription: "",
   siteSlogan: "",
+  siteLogo: "",
   homeBadgeText: "",
   homeIntroText: "",
   homePrimaryCtaText: "",

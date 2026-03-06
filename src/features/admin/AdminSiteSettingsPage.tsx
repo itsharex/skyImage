@@ -29,6 +29,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   siteTitle: "",
   siteDescription: "",
   siteSlogan: "",
+  siteLogo: "",
   homeBadgeText: "",
   homeIntroText: "",
   homePrimaryCtaText: "",
@@ -56,6 +57,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   smtpPort: "",
   smtpUsername: "",
   smtpPassword: "",
+  smtpFrom: "",
   smtpSecure: false,
   enableRegisterVerify: false,
   enableLoginNotification: false,
@@ -69,6 +71,7 @@ const siteFields: (keyof SystemSettingsInput)[] = [
   "siteTitle",
   "siteDescription",
   "siteSlogan",
+  "siteLogo",
   "homeBadgeText",
   "homeIntroText",
   "homePrimaryCtaText",
@@ -191,6 +194,17 @@ export function AdminSiteSettingsPage() {
               onChange={(e) => handleChange("siteSlogan", e.target.value)}
               placeholder="简单、稳定、可扩展的图像托管平台"
             />
+          </div>
+          <div className="space-y-2">
+            <Label>网站 Logo (Favicon)</Label>
+            <Input
+              value={form.siteLogo}
+              onChange={(e) => handleChange("siteLogo", e.target.value)}
+              placeholder="输入图片链接或上传后的相对路径"
+            />
+            <p className="text-xs text-muted-foreground">
+              可以输入外部链接（如 https://example.com/logo.ico）或上传图片后使用相对路径（如 uploads/logo.png）。将在 /favicon.ico 显示
+            </p>
           </div>
           <div className="space-y-2">
             <Label>首页徽标文案</Label>

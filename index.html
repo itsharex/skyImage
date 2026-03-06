@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>skyImage</title>
     <script>
@@ -13,6 +13,17 @@
             var config = JSON.parse(cachedConfig);
             if (config.title) {
               document.title = config.title;
+            }
+            if (config.logo) {
+              var rawLogo = String(config.logo).trim();
+              var logo = rawLogo;
+              if (!/^(https?:)?\/\//i.test(logo) && !logo.startsWith("data:") && !logo.startsWith("/")) {
+                logo = "/" + logo;
+              }
+              var favicon = document.querySelector("link[rel='icon']");
+              if (favicon) {
+                favicon.setAttribute("href", logo + (logo.indexOf("?") >= 0 ? "&" : "?") + "v=" + encodeURIComponent(rawLogo));
+              }
             }
           }
         } catch (error) {

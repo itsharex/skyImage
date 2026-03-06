@@ -31,5 +31,46 @@ export function SiteMetaWatcher({ active }: Props) {
     }
   }, [data]);
 
+  useEffect(() => {
+    const rawLogo = (data?.logo || "").trim();
+    const resolved = resolveLogoHref(rawLogo);
+    const href = appendVersion(resolved || "/favicon.ico", rawLogo || "default");
+
+    const iconLink = ensureHeadLink("icon");
+    iconLink.href = href;
+
+    const shortcutIconLink = ensureHeadLink("shortcut icon");
+    shortcutIconLink.href = href;
+  }, [data?.logo]);
+
   return null;
+}
+
+function resolveLogoHref(logo: string): string {
+  if (!logo) {
+    return "";
+  }
+  if (/^(https?:)?\/\//i.test(logo) || logo.startsWith("data:")) {
+    return logo;
+  }
+  if (logo.startsWith("/")) {
+    return logo;
+  }
+  return `/${logo}`;
+}
+
+function appendVersion(url: string, seed: string): string {
+  const join = url.includes("?") ? "&" : "?";
+  return `${url}${join}v=${encodeURIComponent(seed)}`;
+}
+
+function ensureHeadLink(rel: string): HTMLLinkElement {
+  const existing = document.querySelector(`link[rel='${rel}']`) as HTMLLinkElement | null;
+  if (existing) {
+    return existing;
+  }
+  const link = document.createElement("link");
+  link.rel = rel;
+  document.head.appendChild(link);
+  return link;
 }

@@ -14,6 +14,7 @@ func (s *Server) registerSiteRoutes(r *gin.RouterGroup) {
 	r.GET("/site/config", s.handleSiteConfig)
 	r.GET("/site/turnstile", s.handleTurnstileConfig)
 	r.GET("/gallery/public", s.handleGalleryPublic)
+	s.engine.GET("/favicon.ico", s.handleFavicon)
 }
 
 func (s *Server) handleSiteConfig(c *gin.Context) {
@@ -44,6 +45,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 		"title":                 settings["site.title"],
 		"description":           settings["site.description"],
 		"slogan":                settings["site.slogan"],
+		"logo":                  settings["site.logo"],
 		"homeBadgeText":         settings["home.badge_text"],
 		"homeIntroText":         settings["home.intro_text"],
 		"homePrimaryCtaText":    settings["home.primary_cta_text"],
@@ -113,4 +115,35 @@ func (s *Server) handleTurnstileConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": response})
+}
+
+func (s *Server) handleFavicon(c *gin.Context) {
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
+	settings, err := s.admin.GetSettings(c.Request.Context())
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	logoURL := strings.TrimSpace(settings["site.logo"])
+	if logoURL == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	// 如果是外部链接，重定向到该链接
+	if strings.HasPrefix(logoURL, "http://") || strings.HasPrefix(logoURL, "https://") {
+		c.Redirect(http.StatusFound, logoURL)
+		return
+	}
+
+	// 如果是相对路径，重定向到实际的文件URL
+	// 这样可以利用现有的文件服务逻辑
+	if !strings.HasPrefix(logoURL, "/") {
+		logoURL = "/" + logoURL
+	}
+	c.Redirect(http.StatusFound, logoURL)
 }
