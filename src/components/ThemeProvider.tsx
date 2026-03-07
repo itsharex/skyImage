@@ -79,6 +79,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     const root = document.documentElement;
     root.classList.toggle("dark", resolvedTheme === "dark");
+    root.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);
 
   const value = useMemo(
