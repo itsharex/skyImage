@@ -14,6 +14,7 @@ func (s *Server) registerAccountRoutes(r *gin.RouterGroup) {
 	account.Use(s.authMiddleware(), middleware.RequireCSRF())
 	account.GET("/profile", s.handleAccountProfile)
 	account.PUT("/profile", s.handleAccountUpdateProfile)
+	account.DELETE("/profile", s.handleAccountDelete)
 }
 
 func (s *Server) handleAccountProfile(c *gin.Context) {
@@ -42,4 +43,20 @@ func (s *Server) handleAccountUpdateProfile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": updated})
+}
+
+func (s *Server) handleAccountDelete(c *gin.Context) {
+	user, ok := middleware.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	if err := s.users.DeleteOwnAccount(c.Request.Context(), user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if sessionID, err := c.Cookie("skyimage_session"); err == nil && sessionID != "" {
+		s.session.Delete(sessionID)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "account deleted"})
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/state/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,17 +16,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   fetchAccountProfile,
-  updateAccountProfile
+  updateAccountProfile,
+  deleteAccount
 } from "@/lib/api";
 import { SplashScreen } from "@/components/SplashScreen";
 
 export function ProfileSettingsPage() {
+  const navigate = useNavigate();
   const setUser = useAuthStore((state) => state.setUser);
+  const clearAuth = useAuthStore((state) => state.clear);
   const { data, isLoading } = useQuery({
     queryKey: ["account", "profile"],
     queryFn: fetchAccountProfile
   });
+  
+  const isSuperAdmin = data?.isSuperAdmin || false;
+  const [countdown, setCountdown] = useState(5);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -48,12 +67,37 @@ export function ProfileSettingsPage() {
     }
   }, [data]);
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isDialogOpen && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [isDialogOpen, countdown]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (open) {
+      setCountdown(5);
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: updateAccountProfile,
     onSuccess: (updated) => {
       setUser(updated);
       toast.success("已保存");
       setForm((prev) => ({ ...prev, password: "" }));
+    },
+    onError: (error) => toast.error(error.message)
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      clearAuth();
+      toast.success("账户已删除");
+      navigate("/login");
     },
     onError: (error) => toast.error(error.message)
   });
@@ -161,6 +205,46 @@ export function ProfileSettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {!isSuperAdmin && (
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">危险区域</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                删除账户后，您的所有数据将被永久删除且无法恢复。
+              </p>
+              <AlertDialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={deleteMutation.isPending}>
+                    删除账户
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>确认删除账户？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      此操作无法撤销。您的账户和所有相关数据将被永久删除。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>取消</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={countdown > 0}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {countdown > 0 ? `确认删除 (${countdown}s)` : "确认删除"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

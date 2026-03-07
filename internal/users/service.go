@@ -9,11 +9,12 @@ import (
 	"strings"
 	"unicode"
 
+	"os"
+	"strconv"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"os"
-	"strconv"
 
 	"skyimage/internal/data"
 )
@@ -81,13 +82,13 @@ func validatePassword(password string) error {
 	if len(password) < 8 {
 		return ErrWeakPassword
 	}
-	
+
 	var (
-		hasUpper   bool
-		hasLower   bool
-		hasNumber  bool
+		hasUpper  bool
+		hasLower  bool
+		hasNumber bool
 	)
-	
+
 	for _, char := range password {
 		switch {
 		case unicode.IsUpper(char):
@@ -98,11 +99,11 @@ func validatePassword(password string) error {
 			hasNumber = true
 		}
 	}
-	
+
 	if !hasUpper || !hasLower || !hasNumber {
 		return ErrWeakPassword
 	}
-	
+
 	return nil
 }
 
@@ -111,15 +112,15 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (data.User, er
 	if err := validateEmail(in.Email); err != nil {
 		return data.User{}, err
 	}
-	
+
 	// 验证密码强度
 	if err := validatePassword(in.Password); err != nil {
 		return data.User{}, err
 	}
-	
+
 	// 标准化邮箱（转小写）
 	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
-	
+
 	hashed, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return data.User{}, err
@@ -147,10 +148,10 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (data.User, error) {
 	if err := validateEmail(in.Email); err != nil {
 		return data.User{}, errors.New("invalid credentials")
 	}
-	
+
 	// 标准化邮箱（转小写）
 	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
-	
+
 	var user data.User
 	// 使用参数化查询防止 SQL 注入
 	if err := s.db.WithContext(ctx).Preload("Group").Where("LOWER(email) = ?", in.Email).First(&user).Error; err != nil {
@@ -245,20 +246,20 @@ func (s *Service) CreateUser(ctx context.Context, actor data.User, input CreateU
 	if !actor.IsAdmin {
 		return data.User{}, errors.New("admin required")
 	}
-	
+
 	// 验证邮箱格式
 	if err := validateEmail(input.Email); err != nil {
 		return data.User{}, err
 	}
-	
+
 	// 验证密码强度
 	if err := validatePassword(input.Password); err != nil {
 		return data.User{}, err
 	}
-	
+
 	// 标准化邮箱（转小写）
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
-	
+
 	role := strings.ToLower(strings.TrimSpace(input.Role))
 	if role != "admin" && role != "user" {
 		return data.User{}, errors.New("role must be admin or user")
@@ -299,6 +300,32 @@ func (s *Service) DeleteUser(ctx context.Context, actor data.User, userID uint) 
 		}
 		if user.IsSuperAdmin {
 			return ErrSuperAdminImmutable
+		}
+		var assets []data.FileAsset
+		if err := tx.Where("user_id = ?", user.ID).Find(&assets).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", user.ID).Delete(&data.FileAsset{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&data.User{}, user.ID).Error; err != nil {
+			return err
+		}
+		for _, asset := range assets {
+			_ = os.Remove(asset.Path)
+		}
+		return nil
+	})
+}
+
+func (s *Service) DeleteOwnAccount(ctx context.Context, userID uint) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var user data.User
+		if err := tx.First(&user, userID).Error; err != nil {
+			return err
+		}
+		if user.IsSuperAdmin {
+			return errors.New("超级管理员账户不能被删除")
 		}
 		var assets []data.FileAsset
 		if err := tx.Where("user_id = ?", user.ID).Find(&assets).Error; err != nil {

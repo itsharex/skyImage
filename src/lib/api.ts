@@ -360,6 +360,10 @@ export async function updateAccountProfile(input: {
   return res.data.data;
 }
 
+export async function deleteAccount() {
+  await apiClient.delete("/account/profile");
+}
+
 export type GroupRecord = {
   id: number;
   name: string;
