@@ -302,10 +302,13 @@ func (h *LskyV1Handler) UploadImage(c *gin.Context) {
 		user.Group = guestGroup
 	}
 
+	// 兼容 Lsky v2：上传可见性遵循用户个人设置中的默认上传可见性。
+	visibility := users.DefaultVisibility(user)
+
 	// 使用文件服务上传
 	asset, err := h.fileService.Upload(c.Request.Context(), user, file, files.UploadOptions{
 		StrategyID: strategyID,
-		Visibility: "public",
+		Visibility: visibility,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
