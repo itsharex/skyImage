@@ -69,6 +69,12 @@ func NewDatabase(cfg config.Config) (*gorm.DB, error) {
 	if err := ensurePublicURLColumn(db); err != nil {
 		return nil, fmt.Errorf("prepare files table: %w", err)
 	}
+	if err := ensureLastUsedAtColumn(db); err != nil {
+		return nil, fmt.Errorf("prepare api_tokens table: %w", err)
+	}
+	if err := ensureAPITokenHashes(db); err != nil {
+		return nil, fmt.Errorf("migrate api token hashes: %w", err)
+	}
 
 	if err := db.AutoMigrate(
 		&Group{},
@@ -79,6 +85,8 @@ func NewDatabase(cfg config.Config) (*gorm.DB, error) {
 		&GroupStrategy{},
 		&InstallerState{},
 		&SessionEntry{},
+		&ApiToken{},
+		&Album{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
@@ -118,4 +126,40 @@ func ensurePublicURLColumn(db *gorm.DB) error {
 		return err
 	}
 	return db.Exec("UPDATE `files` SET `public_url` = '' WHERE `public_url` IS NULL").Error
+}
+
+func ensureLastUsedAtColumn(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&ApiToken{}) {
+		return nil
+	}
+	if db.Migrator().HasColumn(&ApiToken{}, "last_used_at") {
+		return nil
+	}
+	return db.Exec("ALTER TABLE `api_tokens` ADD COLUMN `last_used_at` DATETIME").Error
+}
+
+func ensureAPITokenHashes(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&ApiToken{}) {
+		return nil
+	}
+	type row struct {
+		ID    uint
+		Token string
+	}
+	var rows []row
+	if err := db.Table("api_tokens").Select("id, token").Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, item := range rows {
+		if !IsLegacyPlainAPIToken(item.Token) {
+			continue
+		}
+		hashed := HashAPIToken(item.Token)
+		if err := db.Table("api_tokens").
+			Where("id = ? AND token = ?", item.ID, item.Token).
+			Update("token", hashed).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -16,6 +16,7 @@ import { MyImagesPage } from "@/features/files/MyImagesPage";
 import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
 import { GalleryPage } from "@/features/gallery/GalleryPage";
 import { ApiDocsPage } from "@/features/api/ApiDocsPage";
+import { ApiTokensPage } from "@/features/api/ApiTokensPage";
 import { AdminConsolePage } from "@/features/admin/AdminDashboard";
 import { AdminGroupsPage } from "@/features/admin/AdminGroupsPage";
 import { AdminImagesPage } from "@/features/admin/AdminImagesPage";
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="settings" element={<ProfileSettingsPage />} />
               <Route path="gallery" element={<GalleryPage />} />
               <Route path="api" element={<ApiDocsPage />} />
+              <Route path="api-tokens" element={<ApiTokensPage />} />
               <Route path="about" element={<AboutPage />} />
 
               <Route element={<AdminRoute />}>

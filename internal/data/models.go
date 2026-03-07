@@ -139,3 +139,33 @@ type SessionEntry struct {
 func (SessionEntry) TableName() string {
 	return "sessions"
 }
+
+type ApiToken struct {
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	UserID     uint       `gorm:"index;not null" json:"userId"`
+	Token      string     `gorm:"size:255;uniqueIndex;not null" json:"token"`
+	ExpiresAt  time.Time  `gorm:"index;not null" json:"expiresAt"`
+	LastUsedAt *time.Time `gorm:"index" json:"lastUsedAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
+	User       User       `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (ApiToken) TableName() string {
+	return "api_tokens"
+}
+
+type Album struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"userId"`
+	Name      string    `gorm:"size:255;not null" json:"name"`
+	Intro     string    `gorm:"size:512" json:"intro"`
+	ImageNum  uint64    `gorm:"column:image_num;default:0" json:"imageNum"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	User      User      `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (Album) TableName() string {
+	return "albums"
+}

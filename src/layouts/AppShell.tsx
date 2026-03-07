@@ -6,6 +6,7 @@ import {
   GaugeCircle,
   Image as ImageIcon,
   Info,
+  Key,
   Layers3,
   LinkIcon,
   LogOut,
@@ -243,7 +244,10 @@ export function AppShell() {
           ...(enableGallery
             ? [{ to: "/dashboard/gallery", label: "画廊", icon: Brush }]
             : []),
-          ...(enableApi ? [{ to: "/dashboard/api", label: "接口", icon: LinkIcon }] : []),
+          ...(enableApi ? [
+              { to: "/dashboard/api", label: "接口文档", icon: LinkIcon },
+              { to: "/dashboard/api-tokens", label: "API Token", icon: Key }
+            ] : []),
           { to: "/dashboard/about", label: "关于", icon: Info }
         ]
       }

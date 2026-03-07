@@ -610,3 +610,80 @@ export async function fetchLegalDefaults() {
   const res = await apiClient.get<{ data: LegalDefaults }>("/installer/defaults");
   return res.data.data;
 }
+
+export type ApiTokenResponse = {
+  token: string;
+};
+
+export type ApiTokenRecord = {
+  id: number;
+  token: string;
+  tokenMasked?: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
+};
+
+function readTokenField(value: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const v = value[key];
+    if (typeof v === "string" && v.trim() !== "") {
+      return v;
+    }
+  }
+  return "";
+}
+
+function readNumberField(value: Record<string, unknown>, keys: string[]): number {
+  for (const key of keys) {
+    const v = value[key];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      return v;
+    }
+    if (typeof v === "string" && v.trim() !== "") {
+      const parsed = Number(v);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return 0;
+}
+
+function normalizeApiToken(value: unknown): ApiTokenRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const source = value as Record<string, unknown>;
+  const masked = readTokenField(source, ["tokenMasked", "token_masked", "token", "Token"]);
+  if (!masked) {
+    return null;
+  }
+  return {
+    id: readNumberField(source, ["id", "ID"]),
+    token: masked,
+    tokenMasked: masked,
+    createdAt: readTokenField(source, ["createdAt", "created_at", "CreatedAt"]),
+    expiresAt: readTokenField(source, ["expiresAt", "expires_at", "ExpiresAt"]),
+    lastUsedAt: readTokenField(source, ["lastUsedAt", "last_used_at", "LastUsedAt"]) || undefined
+  };
+}
+
+export async function generateApiToken() {
+  const res = await apiClient.post<{ data: ApiTokenResponse }>("/account/api-token");
+  return res.data.data;
+}
+
+export async function fetchApiTokens() {
+  const res = await apiClient.get<{ data: unknown[] }>("/account/api-tokens");
+  const source = Array.isArray(res.data.data) ? res.data.data : [];
+  return source.map(normalizeApiToken).filter((item): item is ApiTokenRecord => item !== null);
+}
+
+export async function deleteApiToken(id: number) {
+  await apiClient.delete(`/account/api-token/${id}`);
+}
+
+export async function deleteApiTokens() {
+  await apiClient.delete("/account/api-token");
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	stdhtml "html"
 	"io"
 	"log"
 	"net/http"
@@ -154,6 +155,7 @@ func (s *Server) registerRoutes() {
 	s.registerAdminRoutes(apiGroup)
 	s.registerFileRoutes(apiGroup)
 	s.registerSiteRoutes(apiGroup)
+	s.registerLskyV1Routes(apiGroup)
 	s.registerStaticAssets()
 	s.registerFrontend()
 }
@@ -176,6 +178,15 @@ func (s *Server) registerFrontend() {
 	})
 
 	s.engine.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":   "api route not found",
+				"path":    c.Request.URL.Path,
+				"method":  c.Request.Method,
+				"message": "check API base path, HTTP method, and trailing slash",
+			})
+			return
+		}
 		if s.tryServeLocalFile(c) {
 			return
 		}
@@ -648,26 +659,46 @@ func (s *Server) serveIndexHTML(c *gin.Context, distPath string) {
 	// 替换 HTML 中的标题
 	html := string(content)
 	if title != "" {
-		html = strings.Replace(html, "<title>skyImage</title>", "<title>"+title+"</title>", 1)
+		safeTitle := stdhtml.EscapeString(title)
+		html = strings.Replace(html, "<title>skyImage</title>", "<title>"+safeTitle+"</title>", 1)
 	}
 
 	// 替换 favicon
 	if logo != "" {
-		// 处理 logo URL
-		logoURL := logo
-		if !strings.HasPrefix(logo, "http://") && !strings.HasPrefix(logo, "https://") && !strings.HasPrefix(logo, "data:") {
-			if !strings.HasPrefix(logo, "/") {
-				logoURL = "/" + logo
-			}
+		logoURL := sanitizeFaviconURL(logo)
+		if logoURL != "" {
+			oldFavicon := `<link rel="icon" type="image/x-icon" href="/favicon.ico" />`
+			newFavicon := `<link rel="icon" type="image/x-icon" href="` + stdhtml.EscapeString(logoURL) + `" />`
+			html = strings.Replace(html, oldFavicon, newFavicon, 1)
 		}
-
-		// 替换 favicon link
-		oldFavicon := `<link rel="icon" type="image/x-icon" href="/favicon.ico" />`
-		newFavicon := `<link rel="icon" type="image/x-icon" href="` + logoURL + `" />`
-		html = strings.Replace(html, oldFavicon, newFavicon, 1)
 	}
 
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+}
+
+func sanitizeFaviconURL(raw string) string {
+	logo := strings.TrimSpace(raw)
+	if logo == "" || strings.ContainsAny(logo, "\r\n") {
+		return ""
+	}
+	lower := strings.ToLower(logo)
+	if strings.HasPrefix(lower, "data:") {
+		if strings.HasPrefix(lower, "data:image/") {
+			return logo
+		}
+		return ""
+	}
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		parsed, err := url.Parse(logo)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return ""
+		}
+		return parsed.String()
+	}
+	if strings.HasPrefix(logo, "/") {
+		return logo
+	}
+	return "/" + strings.TrimLeft(logo, "/")
 }
 
 func (s *Server) authMiddleware() gin.HandlerFunc {

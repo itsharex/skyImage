@@ -23,6 +23,10 @@ type Service struct {
 	db *gorm.DB
 }
 
+func (s *Service) DB() *gorm.DB {
+	return s.db
+}
+
 var (
 	ErrSuperAdminImmutable = errors.New("cannot modify super admin")
 	ErrInvalidEmail        = errors.New("invalid email format")
