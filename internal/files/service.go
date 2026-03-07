@@ -520,12 +520,17 @@ func (s *Service) FindByKey(ctx context.Context, key string) (data.FileAsset, er
 }
 
 func (s *Service) FindByRelativePath(ctx context.Context, rel string) (data.FileAsset, error) {
+	decoded, err := url.PathUnescape(rel)
+	if err == nil {
+		rel = decoded
+	}
+
 	rel = sanitizeRelativePath(rel)
 	if rel == "" {
 		return data.FileAsset{}, gorm.ErrRecordNotFound
 	}
 	var file data.FileAsset
-	err := s.db.WithContext(ctx).
+	err = s.db.WithContext(ctx).
 		Where("relative_path = ?", rel).
 		First(&file).Error
 	if err == nil {
