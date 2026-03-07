@@ -73,7 +73,7 @@ func (s *Service) GetTrends(ctx context.Context, days int) ([]TrendData, error) 
 	}
 
 	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
-	
+
 	// 生成日期序列
 	trends := make([]TrendData, 0, days)
 	now := time.Now()
@@ -91,7 +91,7 @@ func (s *Service) GetTrends(ctx context.Context, days int) ([]TrendData, error) 
 		Date  string
 		Count int64
 	}
-	
+
 	var uploadCounts []DailyCount
 	err := s.db.WithContext(ctx).
 		Model(&data.FileAsset{}).
@@ -321,6 +321,12 @@ func (s *Service) DeleteStrategy(ctx context.Context, id uint) error {
 func (s *Service) ListAllFiles(ctx context.Context, limit, offset int) ([]data.FileAsset, error) {
 	if limit <= 0 {
 		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	var files []data.FileAsset
 	err := s.db.WithContext(ctx).

@@ -421,8 +421,14 @@ func (s *Service) buildPublicURLFromConfig(cfg strategyConfig, file data.FileAss
 }
 
 func (s *Service) List(ctx context.Context, userID uint, limit int, offset int) ([]data.FileAsset, error) {
-	if limit == 0 {
+	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	var files []data.FileAsset
 	err := s.db.WithContext(ctx).
@@ -545,8 +551,14 @@ func (s *Service) FindByRelativePath(ctx context.Context, rel string) (data.File
 }
 
 func (s *Service) ListPublic(ctx context.Context, limit int, offset int) ([]data.FileAsset, error) {
-	if limit == 0 {
+	if limit <= 0 {
 		limit = 40
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	var files []data.FileAsset
 	err := s.db.WithContext(ctx).

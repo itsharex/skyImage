@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -76,8 +75,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 }
 
 func (s *Server) handleGalleryPublic(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "40"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, offset := parsePagination(c, 40, 100)
 	items, err := s.files.ListPublic(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

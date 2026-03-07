@@ -364,8 +364,7 @@ func (s *Server) handleAdminDeleteStrategy(c *gin.Context) {
 }
 
 func (s *Server) handleAdminImages(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, offset := parsePagination(c, 50, 100)
 	filesList, err := s.admin.ListAllFiles(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
