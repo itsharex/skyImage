@@ -1,22 +1,44 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { ImageGrid } from "@/features/files/components/ImageGrid";
 import {
   fetchAdminImages,
+  fetchSiteConfig,
   deleteAdminImage,
   deleteAdminImagesBatch,
-  type FileRecord,
   updateAdminImageVisibility,
   updateAdminImagesVisibilityBatch
 } from "@/lib/api";
 
 export function AdminImagesPage() {
+  const pageSize = 80;
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin", "images"],
-    queryFn: () => fetchAdminImages({ limit: 100 })
+  const { data: siteConfig } = useQuery({
+    queryKey: ["site-config"],
+    queryFn: fetchSiteConfig,
+    staleTime: 5 * 60 * 1000
   });
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["admin", "images"],
+    queryFn: ({ pageParam = 0 }) =>
+      fetchAdminImages({ limit: pageSize, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < pageSize) {
+        return undefined;
+      }
+      return allPages.reduce((total, page) => total + page.length, 0);
+    }
+  });
+
+  const files = data?.pages.flatMap((page) => page) ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteAdminImage(id),
@@ -69,8 +91,14 @@ export function AdminImagesPage() {
         </p>
       </div>
       <ImageGrid
-        files={data as FileRecord[]}
+        files={files}
         isLoading={isLoading}
+        hasMore={Boolean(hasNextPage)}
+        isFetchingMore={isFetchingNextPage}
+        onLoadMore={async () => {
+          await fetchNextPage();
+        }}
+        loadRowsPerBatch={siteConfig?.imageLoadRows ?? 4}
         onDelete={(id) => deleteMutation.mutateAsync(id)}
         deletingId={deletingId}
         showOwner

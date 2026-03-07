@@ -52,6 +52,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   enableGallery: true,
   enableHome: true,
   enableApi: true,
+  imageLoadRows: 4,
   allowRegistration: true,
   smtpHost: "",
   smtpPort: "",

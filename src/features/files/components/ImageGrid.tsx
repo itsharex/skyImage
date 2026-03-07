@@ -25,6 +25,10 @@ import {
 type Props = {
   files?: FileRecord[];
   isLoading: boolean;
+  hasMore?: boolean;
+  isFetchingMore?: boolean;
+  onLoadMore?: () => void | Promise<void>;
+  loadRowsPerBatch?: number;
   onDelete?: (id: number) => void | Promise<void>;
   deletingId?: number;
   showOwner?: boolean;
@@ -50,6 +54,10 @@ type MenuState = {
 export function ImageGrid({
   files,
   isLoading,
+  hasMore = false,
+  isFetchingMore = false,
+  onLoadMore,
+  loadRowsPerBatch = 4,
   onDelete,
   deletingId,
   showOwner,
@@ -65,6 +73,11 @@ export function ImageGrid({
   const [batchBusy, setBatchBusy] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<number[] | null>(null);
   const [pendingDeleteLabel, setPendingDeleteLabel] = useState("");
+  const [baseVisibleRows, setBaseVisibleRows] = useState(0);
+  const [extraVisibleRows, setExtraVisibleRows] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreLockRef = useRef(false);
+  const prevFirstIdRef = useRef<number | null>(null);
   
   // 新增状态：容器引用、宽度和图片尺寸
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +85,7 @@ export function ImageGrid({
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map());
 
   const items = files ?? [];
+  const normalizedBatchRows = Math.max(1, Math.min(20, Math.trunc(loadRowsPerBatch || 4)));
 
   // 初始化 Fancybox
   useEffect(() => {
@@ -220,6 +234,116 @@ export function ImageGrid({
 
     return rows;
   }, [items, imageDimensions, containerWidth]);
+
+  const bootstrapRows = useMemo(() => {
+    if (typeof window === "undefined") {
+      return 2;
+    }
+    const viewportRows = Math.ceil(window.innerHeight / (ROW_HEIGHT + GAP));
+    return Math.max(1, viewportRows + 2);
+  }, [containerWidth]);
+
+  const requestMoreData = useCallback(async () => {
+    if (!hasMore || isFetchingMore || !onLoadMore || loadMoreLockRef.current) {
+      return;
+    }
+    loadMoreLockRef.current = true;
+    try {
+      await onLoadMore();
+    } finally {
+      loadMoreLockRef.current = false;
+    }
+  }, [hasMore, isFetchingMore, onLoadMore]);
+
+  useEffect(() => {
+    const firstId = items[0]?.id ?? null;
+    if (prevFirstIdRef.current !== null && firstId !== prevFirstIdRef.current) {
+      setBaseVisibleRows(0);
+      setExtraVisibleRows(0);
+    }
+    prevFirstIdRef.current = firstId;
+    if (!items.length) {
+      setBaseVisibleRows(0);
+      setExtraVisibleRows(0);
+    }
+  }, [items]);
+
+  useEffect(() => {
+    if (imageRows.length === 0) {
+      setBaseVisibleRows(0);
+      setExtraVisibleRows(0);
+      return;
+    }
+    const target = Math.min(imageRows.length, bootstrapRows);
+    setBaseVisibleRows((prev) => {
+      if (prev === 0) {
+        return target;
+      }
+      if (prev < target) {
+        return target;
+      }
+      if (prev > imageRows.length) {
+        return imageRows.length;
+      }
+      return prev;
+    });
+  }, [bootstrapRows, imageRows.length]);
+
+  useEffect(() => {
+    const target = Math.min(imageRows.length, bootstrapRows);
+    if (imageRows.length < target && hasMore) {
+      void requestMoreData();
+    }
+  }, [bootstrapRows, hasMore, imageRows.length, requestMoreData]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) {
+          return;
+        }
+        const currentVisible = Math.min(imageRows.length, baseVisibleRows + extraVisibleRows);
+        const currentBootstrapTarget = Math.min(imageRows.length, bootstrapRows);
+
+        if (currentVisible < currentBootstrapTarget) {
+          setBaseVisibleRows(currentBootstrapTarget);
+          return;
+        }
+
+        if (currentVisible < imageRows.length) {
+          setExtraVisibleRows((prev) => prev + normalizedBatchRows);
+          return;
+        }
+
+        if (hasMore) {
+          void requestMoreData();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "250px 0px 250px 0px",
+        threshold: 0.01
+      }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    baseVisibleRows,
+    bootstrapRows,
+    extraVisibleRows,
+    hasMore,
+    imageRows.length,
+    normalizedBatchRows,
+    requestMoreData
+  ]);
+
+  const visibleRowCount = Math.min(imageRows.length, baseVisibleRows + extraVisibleRows);
+  const visibleRows = imageRows.slice(0, visibleRowCount);
 
   useEffect(() => {
     if (!items.length) {
@@ -474,7 +598,7 @@ export function ImageGrid({
         {imageDimensions.size < items.length || containerWidth <= 0 ? (
           <p className="text-sm text-muted-foreground">正在加载图片...</p>
         ) : (
-          imageRows.map((row, rowIndex) => (
+          visibleRows.map((row, rowIndex) => (
             <div key={rowIndex} className="flex w-full" style={{ gap: `${GAP}px`, height: `${ROW_HEIGHT}px` }}>
               {row.map(({ item, width }) => {
                 const imageUrl = normalizeFileUrl(item.viewUrl || item.directUrl);
@@ -590,6 +714,10 @@ export function ImageGrid({
           ))
         )}
       </div>
+      <div ref={sentinelRef} className="h-6 w-full" />
+      {isFetchingMore && (
+        <p className="text-sm text-muted-foreground">正在加载更多图片...</p>
+      )}
 
       {menu && menuPos && (
         <div

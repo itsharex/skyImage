@@ -68,6 +68,7 @@ func (s *Server) handleSiteConfig(c *gin.Context) {
 		"enableGallery":         enableGallery,
 		"enableHome":            enableHome,
 		"enableApi":             enableAPI,
+		"imageLoadRows":         normalizeImageLoadRows(settings["images.load_rows"]),
 		"version":               status.Version,
 		"accountDisabledNotice": disabledNotice,
 	}

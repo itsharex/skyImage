@@ -47,6 +47,7 @@ const defaultSystemSettingsForm: SystemSettingsInput = {
   enableGallery: true,
   enableHome: true,
   enableApi: true,
+  imageLoadRows: 4,
   allowRegistration: true,
   smtpHost: "",
   smtpPort: "",
@@ -245,6 +246,27 @@ export function AdminSystemSettingsPage() {
         <h1 className="text-2xl font-semibold">系统设置</h1>
         <p className="text-muted-foreground">管理邮件服务和人机验证相关配置。</p>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>图片列表加载</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label>单次加载行数</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={form.imageLoadRows}
+            onChange={(e) => {
+              const value = Number.parseInt(e.target.value, 10);
+              handleChange("imageLoadRows", Number.isNaN(value) ? 1 : value);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            图片列表每次滚动触发时追加的行数（首屏自动填充不计入该值）。
+          </p>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>SMTP 配置</CardTitle>

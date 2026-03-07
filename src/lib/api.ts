@@ -202,6 +202,7 @@ export type SiteConfig = {
   enableGallery: boolean;
   enableHome?: boolean;
   enableApi: boolean;
+  imageLoadRows?: number;
   version?: string;
   accountDisabledNotice?: string;
 };
@@ -269,8 +270,8 @@ export async function deleteUserAccount(userId: number) {
   await apiClient.delete(`/admin/users/${userId}`);
 }
 
-export async function fetchFiles() {
-  const res = await apiClient.get<{ data: FileRecord[] }>("/files");
+export async function fetchFiles(params?: { limit?: number; offset?: number }) {
+  const res = await apiClient.get<{ data: FileRecord[] }>("/files", { params });
   return res.data.data;
 }
 
@@ -525,6 +526,7 @@ export type SystemSettingsInput = {
   enableGallery: boolean;
   enableHome: boolean;
   enableApi: boolean;
+  imageLoadRows: number;
   allowRegistration: boolean;
   smtpHost: string;
   smtpPort: string;

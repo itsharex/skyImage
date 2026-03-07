@@ -175,6 +175,7 @@ func (s *Service) Run(ctx context.Context, in RunInput) (Status, error) {
 			"features.gallery":        "true",
 			"features.home":           "true",
 			"features.api":            "true",
+			"images.load_rows":        "4",
 			"mail.smtp.host":          "",
 			"mail.smtp.port":          "",
 			"mail.smtp.username":      "",

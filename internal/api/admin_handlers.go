@@ -510,6 +510,7 @@ type systemSettingsPayload struct {
 	EnableGallery           bool   `json:"enableGallery"`
 	EnableHome              bool   `json:"enableHome"`
 	EnableApi               bool   `json:"enableApi"`
+	ImageLoadRows           int    `json:"imageLoadRows"`
 	AllowRegistration       bool   `json:"allowRegistration"`
 	SMTPHost                string `json:"smtpHost"`
 	SMTPPort                string `json:"smtpPort"`
@@ -529,6 +530,24 @@ type systemSettingsResponse struct {
 	systemSettingsPayload
 	TurnstileVerified       bool   `json:"turnstileVerified"`
 	TurnstileLastVerifiedAt string `json:"turnstileLastVerifiedAt,omitempty"`
+}
+
+func normalizeImageLoadRows(raw string) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		value = 4
+	}
+	return normalizeImageLoadRowsValue(value)
+}
+
+func normalizeImageLoadRowsValue(value int) int {
+	if value < 1 {
+		return 1
+	}
+	if value > 20 {
+		return 20
+	}
+	return value
 }
 
 func (s *Server) handleAdminSystemSettings(c *gin.Context) {
@@ -572,6 +591,7 @@ func (s *Server) handleAdminSystemSettings(c *gin.Context) {
 			EnableGallery:           settings["features.gallery"] != "false",
 			EnableHome:              settings["features.home"] != "false",
 			EnableApi:               settings["features.api"] != "false",
+			ImageLoadRows:           normalizeImageLoadRows(settings["images.load_rows"]),
 			AllowRegistration:       settings["features.allow_registration"] != "false",
 			SMTPHost:                settings["mail.smtp.host"],
 			SMTPPort:                settings["mail.smtp.port"],
@@ -660,6 +680,7 @@ func (s *Server) handleAdminUpdateSystemSettings(c *gin.Context) {
 		"features.gallery":            strconv.FormatBool(payload.EnableGallery),
 		"features.home":               strconv.FormatBool(payload.EnableHome),
 		"features.api":                strconv.FormatBool(payload.EnableApi),
+		"images.load_rows":            strconv.Itoa(normalizeImageLoadRowsValue(payload.ImageLoadRows)),
 		"features.allow_registration": strconv.FormatBool(payload.AllowRegistration),
 		"mail.smtp.host":              payload.SMTPHost,
 		"mail.smtp.port":              payload.SMTPPort,

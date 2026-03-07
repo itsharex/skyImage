@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -8,6 +8,7 @@ import {
   deleteFile,
   deleteFilesBatch,
   fetchFiles,
+  fetchSiteConfig,
   type FileRecord,
   updateFileVisibility,
   updateFilesVisibilityBatch
@@ -17,12 +18,35 @@ import { useAuthStore } from "@/state/auth";
 import { ImageGrid } from "./components/ImageGrid";
 
 export function MyImagesPage() {
+  const pageSize = 60;
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<FileRecord | null>(null);
-  const { data: files, isLoading } = useQuery({
-    queryKey: ["files"],
-    queryFn: fetchFiles
+  const { data: siteConfig } = useQuery({
+    queryKey: ["site-config"],
+    queryFn: fetchSiteConfig,
+    staleTime: 5 * 60 * 1000
   });
+
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["files"],
+    queryFn: ({ pageParam = 0 }) =>
+      fetchFiles({ limit: pageSize, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < pageSize) {
+        return undefined;
+      }
+      return allPages.reduce((total, page) => total + page.length, 0);
+    }
+  });
+
+  const files = data?.pages.flatMap((page) => page) ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteFile(id),
@@ -112,6 +136,12 @@ export function MyImagesPage() {
       <ImageGrid
         files={files}
         isLoading={isLoading}
+        hasMore={Boolean(hasNextPage)}
+        isFetchingMore={isFetchingNextPage}
+        onLoadMore={async () => {
+          await fetchNextPage();
+        }}
+        loadRowsPerBatch={siteConfig?.imageLoadRows ?? 4}
         onDelete={(id) => deleteMutation.mutateAsync(id)}
         deletingId={deletingId}
         onPreview={(file) => setPreview(file)}
