@@ -198,7 +198,10 @@ func SaveDatabaseEnv(cfg Config) error {
 		}
 	}
 
-	return os.WriteFile(envPath, []byte(content), 0o644)
+	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w (若在 Docker 中部署，请确认宿主机 .env 是文件而不是目录)", envPath, err)
+	}
+	return nil
 }
 
 func sanitizeEnvValue(raw string) (string, error) {

@@ -35,6 +35,8 @@ curl -o .env https://raw.githubusercontent.com/fishcpy/skyImage/refs/heads/main/
 docker-compose up -d
 ```
 
+> ⚠️ 启动前必须确保 `.env` 文件已存在。若直接 `docker-compose up` 而宿主机没有 `.env`，Docker 会把 `./.env` 挂载为**目录**，导致安装向导 / 数据库迁移无法保存配置（报 `save database config` 错误）。
+
 启动后访问 `http://localhost:8080` 即可进入安装向导页面。
 
 ### 镜像仓库
@@ -69,6 +71,8 @@ Docker 部署会挂载以下目录：
 - `./storage/data` - 数据库文件目录
 - `./storage/uploads` - 上传文件目录
 - `./.env` - 配置文件（安装后自动保存数据库配置）
+
+> 注意：数据库类型与连接信息以 `.env` 为准。请勿在 `docker-compose.yml` 的 `environment:` 中设置 `DATABASE_TYPE` 等变量——环境变量优先级高于 `.env`，会在容器重启后覆盖迁移/安装写入的配置，导致"迁移成功但重启后又切回旧数据库"。若目标 MySQL/PostgreSQL 运行在宿主机，容器内请使用 `host.docker.internal` 代替 `127.0.0.1`。
 
 ## 二进制部署
 

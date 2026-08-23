@@ -154,7 +154,7 @@ func Migrate(ctx context.Context, sourceCfg, targetCfg config.Config, opts Optio
 	switched := false
 	if opts.SwitchRuntime {
 		if err := config.SaveDatabaseEnv(targetCfg); err != nil {
-			return Result{}, fmt.Errorf("save database config: %w", err)
+			return Result{}, fmt.Errorf("data was copied successfully, but saving database config failed: %w", err)
 		}
 		switched = true
 		closeTarget = false

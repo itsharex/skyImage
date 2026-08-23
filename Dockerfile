@@ -68,11 +68,14 @@ RUN mkdir -p storage/uploads storage/data
 EXPOSE 8080
 
 # 设置环境变量
+# 注意：不要在这里设置 DATABASE_TYPE / DATABASE_PATH。
+# 环境变量优先级高于 .env 文件，若在此烘焙默认值，
+# 安装向导或管理后台写入 .env 的数据库配置会在容器重启后被覆盖，
+# 导致"数据库迁移成功但重启后又回到旧库"。数据库配置由入口脚本
+# 写入并持久化到挂载的 /app/.env 中。
 ENV HTTP_ADDR=:8080 \
     STORAGE_PATH=storage/uploads \
     FRONTEND_DIST=dist \
-    DATABASE_TYPE=sqlite \
-    DATABASE_PATH=storage/data/skyimage.db \
     ALLOW_REGISTRATION=true \
     CORS_ALLOWED_ORIGINS= \
     GIN_MODE=release \

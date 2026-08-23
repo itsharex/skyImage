@@ -19,7 +19,9 @@ services:
     volumes:
       - ./storage/data:/app/storage/data
       - ./storage/uploads:/app/storage/uploads
-      # 重要：.env 文件持久化，保存安装后的数据库配置
+      # 重要：.env 文件持久化，保存安装后的数据库配置。
+      # 首次启动前必须确保宿主机存在 .env 文件（touch .env 或 cp .env.example .env），
+      # 否则 Docker 会把 ./.env 创建为目录，应用将无法保存数据库配置。
       - ./.env:/app/.env
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/health"]
